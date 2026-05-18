@@ -1,0 +1,120 @@
+using FacilityApp.Data.Models;
+using FacilityApp.Services;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+
+namespace FacilityApp.Data;
+
+public class AppDbContext : IdentityDbContext<ApplicationUser>
+{
+    private readonly TenantContext _tenantContext;
+
+    public DbSet<Tenant> Tenants { get; set; }
+    public DbSet<Unit> Units { get; set; }
+    public DbSet<UserUnit> UserUnits { get; set; }
+    public DbSet<Visitor> Visitors { get; set; }
+    public DbSet<Visit> Visits { get; set; }
+    public DbSet<Facility> Facilities { get; set; }
+    public DbSet<AuditLog> AuditLogs { get; set; }
+    public DbSet<AccessPass> AccessPasses { get; set; }
+    public DbSet<BlacklistEntry> BlacklistEntries { get; set; }
+    public DbSet<UnitRequest> UnitRequests { get; set; }
+    public DbSet<MaintenanceRequest> MaintenanceRequests { get; set; }
+
+    public AppDbContext(DbContextOptions<AppDbContext> options, TenantContext tenantContext)
+        : base(options)
+    {
+        _tenantContext = tenantContext;
+    }
+
+    // Exposed as a property so EF Core 9's ExpressionTreeFuncletizer treats it
+    // as a context accessor (re-evaluated per query) rather than a captured closure.
+    private Guid CurrentTenantId => _tenantContext.TenantId;
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+
+        // Table names
+        builder.Entity<Tenant>().ToTable("tenants");
+        builder.Entity<Unit>().ToTable("units");
+        builder.Entity<UserUnit>().ToTable("user_units");
+        builder.Entity<Visitor>().ToTable("visitors");
+        builder.Entity<Visit>().ToTable("visits");
+        builder.Entity<Facility>().ToTable("facilities");
+        builder.Entity<AuditLog>().ToTable("audit_logs");
+        builder.Entity<AccessPass>().ToTable("access_passes");
+        builder.Entity<BlacklistEntry>().ToTable("blacklist_entries");
+        builder.Entity<UnitRequest>().ToTable("unit_requests");
+        builder.Entity<MaintenanceRequest>().ToTable("maintenance_requests");
+
+        builder.Entity<Tenant>().HasIndex(t => t.Slug).IsUnique();
+
+        // Prevent duplicate links (same user, unit, and link type)
+        builder.Entity<UserUnit>()
+            .HasIndex(uu => new { uu.UserId, uu.UnitId, uu.LinkType })
+            .IsUnique();
+
+        // UserUnit relationships
+        builder.Entity<UserUnit>()
+            .HasOne(uu => uu.User)
+            .WithMany(u => u.UserUnits)
+            .HasForeignKey(uu => uu.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<UserUnit>()
+            .HasOne(uu => uu.Unit)
+            .WithMany(u => u.UserUnits)
+            .HasForeignKey(uu => uu.UnitId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Multi-tenancy global query filters
+        builder.Entity<Unit>().HasQueryFilter(u => u.TenantId == CurrentTenantId);
+        builder.Entity<UserUnit>().HasQueryFilter(uu => uu.TenantId == CurrentTenantId);
+        builder.Entity<Visitor>().HasQueryFilter(v => v.TenantId == CurrentTenantId);
+        builder.Entity<Visit>().HasQueryFilter(v => v.TenantId == CurrentTenantId);
+        builder.Entity<Facility>().HasQueryFilter(f => f.TenantId == CurrentTenantId);
+        builder.Entity<ApplicationUser>().HasQueryFilter(u => u.TenantId == CurrentTenantId);
+        builder.Entity<AuditLog>().HasQueryFilter(a => a.TenantId == CurrentTenantId);
+        builder.Entity<AccessPass>().HasQueryFilter(p => p.TenantId == CurrentTenantId);
+        builder.Entity<BlacklistEntry>().HasQueryFilter(b => b.TenantId == CurrentTenantId);
+        builder.Entity<UnitRequest>().HasQueryFilter(r => r.TenantId == CurrentTenantId);
+        builder.Entity<MaintenanceRequest>().HasQueryFilter(m => m.TenantId == CurrentTenantId);
+
+        builder.Entity<UnitRequest>()
+            .HasOne(r => r.Resident)
+            .WithMany()
+            .HasForeignKey(r => r.ResidentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<UnitRequest>()
+            .HasOne(r => r.Unit)
+            .WithMany()
+            .HasForeignKey(r => r.UnitId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<UnitRequest>()
+            .HasOne(r => r.ReviewedBy)
+            .WithMany()
+            .HasForeignKey(r => r.ReviewedById)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<MaintenanceRequest>()
+            .HasOne(m => m.Resident)
+            .WithMany()
+            .HasForeignKey(m => m.ResidentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<MaintenanceRequest>()
+            .HasOne(m => m.Unit)
+            .WithMany()
+            .HasForeignKey(m => m.UnitId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<MaintenanceRequest>()
+            .HasOne(m => m.AssignedTo)
+            .WithMany()
+            .HasForeignKey(m => m.AssignedToId)
+            .OnDelete(DeleteBehavior.SetNull);
+    }
+}

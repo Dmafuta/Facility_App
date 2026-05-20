@@ -19,9 +19,9 @@ RUN groupadd --system --gid 1001 appgroup \
 # Copy published output
 COPY --from=build /app/publish .
 
-# Writable directories for uploads/documents (bind-mounted volumes in prod)
-RUN mkdir -p wwwroot/uploads wwwroot/documents \
- && chown -R appuser:appgroup wwwroot/uploads wwwroot/documents
+# Writable directories for uploads/documents/dataprotection keys
+RUN mkdir -p wwwroot/uploads wwwroot/documents keys \
+ && chown -R appuser:appgroup wwwroot/uploads wwwroot/documents keys
 
 USER appuser
 

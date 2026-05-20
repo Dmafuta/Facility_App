@@ -7,12 +7,13 @@ namespace FacilityApp.Services;
 
 public class ReportService : IReportService
 {
-    private readonly AppDbContext _context;
+    private readonly IDbContextFactory<AppDbContext> _factory;
 
-    public ReportService(AppDbContext context) => _context = context;
+    public ReportService(IDbContextFactory<AppDbContext> factory) => _factory = factory;
 
     public async Task<ReportStats> GetStatsAsync(DateOnly from, DateOnly to)
     {
+        await using var _context = await _factory.CreateDbContextAsync();
         var fromUtc = from.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var toUtc   = to.ToDateTime(new TimeOnly(23, 59, 59), DateTimeKind.Utc);
 
@@ -70,18 +71,21 @@ public class ReportService : IReportService
 
     public async Task<byte[]> GetCsvBytesAsync(DateOnly from, DateOnly to)
     {
+        await using var _context = await _factory.CreateDbContextAsync();
         var fromUtc = from.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var toUtc   = to.ToDateTime(new TimeOnly(23, 59, 59), DateTimeKind.Utc);
 
         var visits = await _context.Visits
             .Include(v => v.Visitor)
             .Include(v => v.Host)
+            .Include(v => v.EntryEntrance)
+            .Include(v => v.ExitEntrance)
             .Where(v => v.ScheduledAt >= fromUtc && v.ScheduledAt <= toUtc)
             .OrderBy(v => v.ScheduledAt)
             .ToListAsync();
 
         var sb = new StringBuilder();
-        sb.AppendLine("Visitor Name,Email,Phone,Company,Host,Purpose,Scheduled,Checked In,Checked Out,Status,Notes");
+        sb.AppendLine("Visitor Name,Email,Phone,Company,Host,Purpose,Scheduled,Checked In,Entry Gate,Checked Out,Exit Gate,Status,Notes");
 
         foreach (var v in visits)
         {
@@ -94,7 +98,9 @@ public class ReportService : IReportService
                 Esc(v.Purpose),
                 v.ScheduledAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
                 v.CheckedInAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "",
+                Esc(v.EntryEntrance?.Name ?? ""),
                 v.CheckedOutAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "",
+                Esc(v.ExitEntrance?.Name ?? ""),
                 v.Status.ToString(),
                 Esc(v.Notes ?? "")));
         }

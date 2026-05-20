@@ -83,16 +83,11 @@
 
 .nav-scrollable {
     display: none;
+    flex-direction: column;
 }
 
 .navbar-toggler:checked ~ .nav-scrollable {
-    display: block;
-}
-
-/* Auth section at bottom of sidebar */
-.nav-scrollable {
     display: flex;
-    flex-direction: column;
 }
 
 .nav-auth-section {

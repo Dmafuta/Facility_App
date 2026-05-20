@@ -6,15 +6,16 @@ namespace FacilityApp.Services;
 
 public class DashboardService : IDashboardService
 {
-    private readonly AppDbContext _context;
+    private readonly IDbContextFactory<AppDbContext> _factory;
 
-    public DashboardService(AppDbContext context)
+    public DashboardService(IDbContextFactory<AppDbContext> factory)
     {
-        _context = context;
+        _factory = factory;
     }
 
     public async Task<DashboardStats> GetStatsAsync()
     {
+        await using var _context = await _factory.CreateDbContextAsync();
         var now = DateTime.UtcNow;
         var today = new DateTime(now.Year, now.Month, now.Day, 0, 0, 0, DateTimeKind.Utc);
         var weekStart = today.AddDays(-(int)today.DayOfWeek);
@@ -53,6 +54,8 @@ public class DashboardService : IDashboardService
 
             RecentActivity = await _context.Visits
                 .Include(v => v.Visitor)
+                .Include(v => v.EntryEntrance)
+                .Include(v => v.ExitEntrance)
                 .Where(v => v.Status == VisitStatus.CheckedIn || v.Status == VisitStatus.CheckedOut)
                 .OrderByDescending(v => v.CheckedInAt ?? v.CheckedOutAt)
                 .Take(12)

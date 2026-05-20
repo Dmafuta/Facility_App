@@ -16,5 +16,6 @@ public class BlacklistEntry
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ExpiresAt { get; set; }
     public bool IsActive { get; set; } = true;
+    public Guid? EntranceId { get; set; }
     public string? Notes { get; set; }
 }

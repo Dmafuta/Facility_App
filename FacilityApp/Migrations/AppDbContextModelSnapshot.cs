@@ -31,6 +31,9 @@ namespace FacilityApp.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("EntranceId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("IsRevoked")
                         .HasColumnType("boolean");
 
@@ -66,6 +69,8 @@ namespace FacilityApp.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EntranceId");
 
                     b.HasIndex("VisitId");
 
@@ -128,6 +133,9 @@ namespace FacilityApp.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CurrentEntranceId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -252,6 +260,9 @@ namespace FacilityApp.Migrations
                     b.Property<string>("Email")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("EntranceId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("EntryType")
                         .HasColumnType("integer");
 
@@ -330,6 +341,35 @@ namespace FacilityApp.Migrations
                     b.HasIndex("UploadedById");
 
                     b.ToTable("documents", (string)null);
+                });
+
+            modelBuilder.Entity("FacilityApp.Data.Models.Entrance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("entrances", (string)null);
                 });
 
             modelBuilder.Entity("FacilityApp.Data.Models.Facility", b =>
@@ -485,6 +525,122 @@ namespace FacilityApp.Migrations
                     b.ToTable("maintenance_requests", (string)null);
                 });
 
+            modelBuilder.Entity("FacilityApp.Data.Models.Parcel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CollectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CollectedByName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CourierName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReceivedById")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceivedById");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("UnitId");
+
+                    b.ToTable("parcels", (string)null);
+                });
+
+            modelBuilder.Entity("FacilityApp.Data.Models.ParkingRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("EnteredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("EntryEntranceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ExitEntranceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ExitedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LoggedById")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PlateNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("VehicleTagId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("VisitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntryEntranceId");
+
+                    b.HasIndex("ExitEntranceId");
+
+                    b.HasIndex("LoggedById");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("VehicleId");
+
+                    b.HasIndex("VehicleTagId");
+
+                    b.HasIndex("VisitId");
+
+                    b.ToTable("parking_records", (string)null);
+                });
+
             modelBuilder.Entity("FacilityApp.Data.Models.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -515,6 +671,9 @@ namespace FacilityApp.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("Plan")
+                        .HasColumnType("integer");
 
                     b.Property<string>("PrimaryColour")
                         .HasColumnType("text");
@@ -650,6 +809,98 @@ namespace FacilityApp.Migrations
                     b.ToTable("user_units", (string)null);
                 });
 
+            modelBuilder.Entity("FacilityApp.Data.Models.Vehicle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Colour")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Make")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PlateNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("RegisteredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("vehicles", (string)null);
+                });
+
+            modelBuilder.Entity("FacilityApp.Data.Models.VehicleTag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IssuedById")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TagNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IssuedById");
+
+                    b.HasIndex("VehicleId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "TagNumber")
+                        .IsUnique();
+
+                    b.ToTable("vehicle_tags", (string)null);
+                });
+
             modelBuilder.Entity("FacilityApp.Data.Models.Visit", b =>
                 {
                     b.Property<Guid>("Id")
@@ -664,6 +915,12 @@ namespace FacilityApp.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("EntryEntranceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ExitEntranceId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("HostId")
                         .HasColumnType("text");
@@ -691,6 +948,10 @@ namespace FacilityApp.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EntryEntranceId");
+
+                    b.HasIndex("ExitEntranceId");
 
                     b.HasIndex("HostId");
 
@@ -872,11 +1133,17 @@ namespace FacilityApp.Migrations
 
             modelBuilder.Entity("FacilityApp.Data.Models.AccessPass", b =>
                 {
+                    b.HasOne("FacilityApp.Data.Models.Entrance", "Entrance")
+                        .WithMany()
+                        .HasForeignKey("EntranceId");
+
                     b.HasOne("FacilityApp.Data.Models.Visit", "Visit")
                         .WithMany()
                         .HasForeignKey("VisitId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Entrance");
 
                     b.Navigation("Visit");
                 });
@@ -928,6 +1195,17 @@ namespace FacilityApp.Migrations
                     b.Navigation("Tenant");
 
                     b.Navigation("UploadedBy");
+                });
+
+            modelBuilder.Entity("FacilityApp.Data.Models.Entrance", b =>
+                {
+                    b.HasOne("FacilityApp.Data.Models.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("FacilityApp.Data.Models.Facility", b =>
@@ -998,6 +1276,86 @@ namespace FacilityApp.Migrations
                     b.Navigation("Tenant");
 
                     b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("FacilityApp.Data.Models.Parcel", b =>
+                {
+                    b.HasOne("FacilityApp.Data.Models.ApplicationUser", "ReceivedBy")
+                        .WithMany()
+                        .HasForeignKey("ReceivedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FacilityApp.Data.Models.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FacilityApp.Data.Models.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ReceivedBy");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("FacilityApp.Data.Models.ParkingRecord", b =>
+                {
+                    b.HasOne("FacilityApp.Data.Models.Entrance", "EntryEntrance")
+                        .WithMany()
+                        .HasForeignKey("EntryEntranceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FacilityApp.Data.Models.Entrance", "ExitEntrance")
+                        .WithMany()
+                        .HasForeignKey("ExitEntranceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FacilityApp.Data.Models.ApplicationUser", "LoggedBy")
+                        .WithMany()
+                        .HasForeignKey("LoggedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FacilityApp.Data.Models.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FacilityApp.Data.Models.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FacilityApp.Data.Models.VehicleTag", "VehicleTag")
+                        .WithMany()
+                        .HasForeignKey("VehicleTagId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FacilityApp.Data.Models.Visit", "Visit")
+                        .WithMany()
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("EntryEntrance");
+
+                    b.Navigation("ExitEntrance");
+
+                    b.Navigation("LoggedBy");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("Vehicle");
+
+                    b.Navigation("VehicleTag");
+
+                    b.Navigation("Visit");
                 });
 
             modelBuilder.Entity("FacilityApp.Data.Models.Unit", b =>
@@ -1072,8 +1430,64 @@ namespace FacilityApp.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("FacilityApp.Data.Models.Vehicle", b =>
+                {
+                    b.HasOne("FacilityApp.Data.Models.ApplicationUser", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FacilityApp.Data.Models.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("FacilityApp.Data.Models.VehicleTag", b =>
+                {
+                    b.HasOne("FacilityApp.Data.Models.ApplicationUser", "IssuedBy")
+                        .WithMany()
+                        .HasForeignKey("IssuedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FacilityApp.Data.Models.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FacilityApp.Data.Models.Vehicle", "Vehicle")
+                        .WithOne("Tag")
+                        .HasForeignKey("FacilityApp.Data.Models.VehicleTag", "VehicleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("IssuedBy");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("Vehicle");
+                });
+
             modelBuilder.Entity("FacilityApp.Data.Models.Visit", b =>
                 {
+                    b.HasOne("FacilityApp.Data.Models.Entrance", "EntryEntrance")
+                        .WithMany()
+                        .HasForeignKey("EntryEntranceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FacilityApp.Data.Models.Entrance", "ExitEntrance")
+                        .WithMany()
+                        .HasForeignKey("ExitEntranceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FacilityApp.Data.Models.ApplicationUser", "Host")
                         .WithMany()
                         .HasForeignKey("HostId");
@@ -1089,6 +1503,10 @@ namespace FacilityApp.Migrations
                         .HasForeignKey("VisitorId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("EntryEntrance");
+
+                    b.Navigation("ExitEntrance");
 
                     b.Navigation("Host");
 
@@ -1167,6 +1585,11 @@ namespace FacilityApp.Migrations
             modelBuilder.Entity("FacilityApp.Data.Models.Unit", b =>
                 {
                     b.Navigation("UserUnits");
+                });
+
+            modelBuilder.Entity("FacilityApp.Data.Models.Vehicle", b =>
+                {
+                    b.Navigation("Tag");
                 });
 #pragma warning restore 612, 618
         }

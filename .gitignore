@@ -35,6 +35,7 @@ secrets.json
 *.cer
 .env
 .env.*
+!.env.example
 **/UserSecrets/
 
 # ── Uploaded files ────────────────────────────────────────────────────────────

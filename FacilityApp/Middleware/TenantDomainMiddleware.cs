@@ -16,7 +16,7 @@ public class TenantDomainMiddleware(RequestDelegate next)
             var host = context.Request.Host.Host.ToLower();
 
             // Skip local development hosts
-            bool isLocal = host == "localhost" || host == "127.0.0.1" || host.StartsWith("192.168.");
+            bool isLocal = host == "localhost" || host == "127.0.0.1" || host.StartsWith("172.16.");
             if (!isLocal)
             {
                 var tenant = await tenantSvc.ResolveByDomainAsync(host);
@@ -27,6 +27,7 @@ public class TenantDomainMiddleware(RequestDelegate next)
                     tenantCtx.TenantName     = tenant.Name;
                     tenantCtx.PrimaryColour  = tenant.PrimaryColour;
                     tenantCtx.LogoUrl        = tenant.LogoUrl;
+                    tenantCtx.Plan           = tenant.Plan;
                     tenantCtx.IsResolved     = true;
                     tenantCtx.IsCustomDomain = true;
                 }

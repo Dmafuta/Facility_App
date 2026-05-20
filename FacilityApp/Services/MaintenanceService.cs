@@ -6,18 +6,19 @@ namespace FacilityApp.Services;
 
 public class MaintenanceService : IMaintenanceService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly TenantContext _tenantCtx;
 
-    public MaintenanceService(AppDbContext db, TenantContext tenantCtx)
+    public MaintenanceService(IDbContextFactory<AppDbContext> factory, TenantContext tenantCtx)
     {
-        _db        = db;
+        _factory   = factory;
         _tenantCtx = tenantCtx;
     }
 
     public async Task<List<MaintenanceRequest>> GetForResidentAsync(string residentId)
     {
-        return await _db.MaintenanceRequests
+        await using var db = await _factory.CreateDbContextAsync();
+        return await db.MaintenanceRequests
             .Include(m => m.Unit)
             .Where(m => m.ResidentId == residentId)
             .OrderByDescending(m => m.CreatedAt)
@@ -26,7 +27,8 @@ public class MaintenanceService : IMaintenanceService
 
     public async Task<List<MaintenanceRequest>> GetAllAsync(MaintenanceStatus? status = null)
     {
-        var query = _db.MaintenanceRequests
+        await using var db = await _factory.CreateDbContextAsync();
+        var query = db.MaintenanceRequests
             .Include(m => m.Resident)
             .Include(m => m.Unit)
             .AsQueryable();
@@ -39,12 +41,14 @@ public class MaintenanceService : IMaintenanceService
 
     public async Task<int> GetOpenCountAsync()
     {
-        return await _db.MaintenanceRequests
+        await using var db = await _factory.CreateDbContextAsync();
+        return await db.MaintenanceRequests
             .CountAsync(m => m.Status == MaintenanceStatus.Open || m.Status == MaintenanceStatus.InProgress);
     }
 
     public async Task<MaintenanceRequest> SubmitAsync(string residentId, Guid? unitId, string title, string description, MaintenanceCategory category, MaintenancePriority priority)
     {
+        await using var db = await _factory.CreateDbContextAsync();
         var request = new MaintenanceRequest
         {
             TenantId    = _tenantCtx.TenantId,
@@ -56,14 +60,15 @@ public class MaintenanceService : IMaintenanceService
             Priority    = priority
         };
 
-        _db.MaintenanceRequests.Add(request);
-        await _db.SaveChangesAsync();
+        db.MaintenanceRequests.Add(request);
+        await db.SaveChangesAsync();
         return request;
     }
 
     public async Task UpdateStatusAsync(Guid id, MaintenanceStatus status, string? staffNote)
     {
-        var request = await _db.MaintenanceRequests.FindAsync(id)
+        await using var db = await _factory.CreateDbContextAsync();
+        var request = await db.MaintenanceRequests.FindAsync(id)
             ?? throw new InvalidOperationException("Request not found.");
 
         request.Status    = status;
@@ -75,6 +80,6 @@ public class MaintenanceService : IMaintenanceService
         if (status == MaintenanceStatus.Resolved || status == MaintenanceStatus.Closed)
             request.ResolvedAt ??= DateTime.UtcNow;
 
-        await _db.SaveChangesAsync();
+        await db.SaveChangesAsync();
     }
 }

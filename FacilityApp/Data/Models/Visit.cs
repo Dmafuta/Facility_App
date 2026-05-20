@@ -24,5 +24,9 @@ public class Visit
     public DateTime? CheckedOutAt { get; set; }
     public VisitStatus Status { get; set; } = VisitStatus.Scheduled;
     public string? Notes { get; set; }
+    public Guid? EntryEntranceId { get; set; }
+    public Entrance? EntryEntrance { get; set; }
+    public Guid? ExitEntranceId { get; set; }
+    public Entrance? ExitEntrance { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

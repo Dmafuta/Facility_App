@@ -90,17 +90,19 @@ public class BlacklistService : IBlacklistService
         return (items, total);
     }
 
-    public async Task<BlacklistEntry?> CheckAsync(string? email, string? phone)
+    public async Task<BlacklistEntry?> CheckAsync(string? email, string? phone, Guid? entranceId = null)
     {
-        var now = DateTime.UtcNow;
+        var now       = DateTime.UtcNow;
         var emailNorm = email?.Trim().ToLower();
 
         return await _db.BlacklistEntries
             .Where(e => e.IsActive &&
                         (e.ExpiresAt == null || e.ExpiresAt > now) &&
+                        // Global entry (no entrance) or matches the specific entrance being checked
+                        (e.EntranceId == null || (entranceId != null && e.EntranceId == entranceId)) &&
                         ((emailNorm != null && e.Email == emailNorm) ||
                          (phone != null && e.Phone == phone.Trim())))
-            .OrderBy(e => e.EntryType) // Blacklisted=0 sorts first, so blocked visitors surface before watchlisted
+            .OrderBy(e => e.EntryType) // Blacklisted=0 sorts first
             .FirstOrDefaultAsync();
     }
 }

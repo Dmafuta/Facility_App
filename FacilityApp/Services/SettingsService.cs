@@ -22,6 +22,10 @@ public class SettingsService : ISettingsService
     {
         var tenant = await _context.Tenants.FindAsync(_tenantCtx.TenantId)
             ?? throw new InvalidOperationException("Tenant not found.");
+
+        if (!string.IsNullOrWhiteSpace(customDomain) && tenant.Plan != Data.Models.TenantPlan.Professional)
+            throw new InvalidOperationException("Custom domain is a Professional plan feature. Please upgrade to enable it.");
+
         tenant.Name         = name.Trim();
         tenant.ContactEmail = contactEmail?.Trim();
         tenant.ContactPhone = contactPhone?.Trim();

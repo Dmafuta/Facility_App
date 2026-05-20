@@ -23,6 +23,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Announcement> Announcements { get; set; }
     public DbSet<Document> Documents { get; set; }
     public DbSet<IncidentReport> IncidentReports { get; set; }
+    public DbSet<Entrance> Entrances { get; set; }
+    public DbSet<Vehicle> Vehicles { get; set; }
+    public DbSet<VehicleTag> VehicleTags { get; set; }
+    public DbSet<ParkingRecord> ParkingRecords { get; set; }
+    public DbSet<Parcel> Parcels { get; set; }
 
     public AppDbContext(DbContextOptions<AppDbContext> options, TenantContext tenantContext)
         : base(options)
@@ -53,6 +58,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Announcement>().ToTable("announcements");
         builder.Entity<Document>().ToTable("documents");
         builder.Entity<IncidentReport>().ToTable("incident_reports");
+        builder.Entity<Entrance>().ToTable("entrances");
+        builder.Entity<Vehicle>().ToTable("vehicles");
+        builder.Entity<VehicleTag>().ToTable("vehicle_tags");
+        builder.Entity<ParkingRecord>().ToTable("parking_records");
+        builder.Entity<Parcel>().ToTable("parcels");
 
         builder.Entity<Tenant>().HasIndex(t => t.Slug).IsUnique();
 
@@ -89,6 +99,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<Announcement>().HasQueryFilter(a => a.TenantId == CurrentTenantId);
         builder.Entity<Document>().HasQueryFilter(d => d.TenantId == CurrentTenantId);
         builder.Entity<IncidentReport>().HasQueryFilter(i => i.TenantId == CurrentTenantId);
+        builder.Entity<Entrance>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
+        builder.Entity<Vehicle>().HasQueryFilter(v => v.TenantId == CurrentTenantId);
+        builder.Entity<VehicleTag>().HasQueryFilter(t => t.TenantId == CurrentTenantId);
+        builder.Entity<ParkingRecord>().HasQueryFilter(p => p.TenantId == CurrentTenantId);
+        builder.Entity<Parcel>().HasQueryFilter(p => p.TenantId == CurrentTenantId);
 
         builder.Entity<UnitRequest>()
             .HasOne(r => r.Resident)
@@ -149,5 +164,87 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .WithMany()
             .HasForeignKey(i => i.ResolvedById)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<Visit>()
+            .HasOne(v => v.EntryEntrance)
+            .WithMany()
+            .HasForeignKey(v => v.EntryEntranceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<Visit>()
+            .HasOne(v => v.ExitEntrance)
+            .WithMany()
+            .HasForeignKey(v => v.ExitEntranceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<Vehicle>()
+            .HasOne(v => v.Owner)
+            .WithMany()
+            .HasForeignKey(v => v.OwnerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<VehicleTag>()
+            .HasOne(t => t.Vehicle)
+            .WithOne(v => v.Tag)
+            .HasForeignKey<VehicleTag>(t => t.VehicleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<VehicleTag>()
+            .HasOne(t => t.IssuedBy)
+            .WithMany()
+            .HasForeignKey(t => t.IssuedById)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<VehicleTag>()
+            .HasIndex(t => new { t.TenantId, t.TagNumber })
+            .IsUnique();
+
+        builder.Entity<ParkingRecord>()
+            .HasOne(p => p.Vehicle)
+            .WithMany()
+            .HasForeignKey(p => p.VehicleId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<ParkingRecord>()
+            .HasOne(p => p.VehicleTag)
+            .WithMany()
+            .HasForeignKey(p => p.VehicleTagId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<ParkingRecord>()
+            .HasOne(p => p.Visit)
+            .WithMany()
+            .HasForeignKey(p => p.VisitId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<ParkingRecord>()
+            .HasOne(p => p.EntryEntrance)
+            .WithMany()
+            .HasForeignKey(p => p.EntryEntranceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<ParkingRecord>()
+            .HasOne(p => p.ExitEntrance)
+            .WithMany()
+            .HasForeignKey(p => p.ExitEntranceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<ParkingRecord>()
+            .HasOne(p => p.LoggedBy)
+            .WithMany()
+            .HasForeignKey(p => p.LoggedById)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<Parcel>()
+            .HasOne(p => p.Unit)
+            .WithMany()
+            .HasForeignKey(p => p.UnitId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<Parcel>()
+            .HasOne(p => p.ReceivedBy)
+            .WithMany()
+            .HasForeignKey(p => p.ReceivedById)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

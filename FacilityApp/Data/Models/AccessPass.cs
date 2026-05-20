@@ -14,6 +14,8 @@ public class AccessPass
     public string? ParkingBay { get; set; }
     public DateTime ValidFrom { get; set; } = DateTime.UtcNow;
     public DateTime? ValidUntil { get; set; }
+    public Guid? EntranceId { get; set; }
+    public Entrance? Entrance { get; set; }
     public bool IsRevoked { get; set; }
     public DateTime? RevokedAt { get; set; }
     public string? RevokedReason { get; set; }

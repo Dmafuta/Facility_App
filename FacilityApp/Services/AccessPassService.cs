@@ -62,6 +62,7 @@ public class AccessPassService : IAccessPassService
     {
         var q = _db.AccessPasses
             .Include(p => p.Visit).ThenInclude(v => v.Visitor)
+            .Include(p => p.Entrance)
             .AsQueryable();
 
         q = status switch

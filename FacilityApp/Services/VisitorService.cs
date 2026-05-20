@@ -37,6 +37,8 @@ public class VisitorService : IVisitorService
         var q = _context.Visits
             .Include(v => v.Visitor)
             .Include(v => v.Host)
+            .Include(v => v.EntryEntrance)
+            .Include(v => v.ExitEntrance)
             .AsQueryable();
 
         q = tab switch
@@ -98,6 +100,8 @@ public class VisitorService : IVisitorService
     public async Task<List<Visit>> GetVisitsForHostAsync(string hostUserId)
         => await _context.Visits
             .Include(v => v.Visitor)
+            .Include(v => v.EntryEntrance)
+            .Include(v => v.ExitEntrance)
             .Where(v => v.HostUserId == hostUserId)
             .OrderByDescending(v => v.ScheduledAt)
             .Take(200)
@@ -113,9 +117,10 @@ public class VisitorService : IVisitorService
 
     public async Task<Visit> WalkInAsync(
         string fullName, string email, string phone, string? company,
-        string purpose, string? hostUserId, string? notes = null, string? photoUrl = null)
+        string purpose, string? hostUserId, string? notes = null, string? photoUrl = null,
+        Guid? entranceId = null)
     {
-        var blocked = await _blacklist.CheckAsync(email, phone);
+        var blocked = await _blacklist.CheckAsync(email, phone, entranceId);
         if (blocked is not null && blocked.EntryType == Data.Models.BlacklistType.Blacklisted)
             throw new VisitorBlockedException(blocked);
 
@@ -133,20 +138,22 @@ public class VisitorService : IVisitorService
 
         var visit = new Visit
         {
-            TenantId    = _tenantCtx.TenantId,
-            VisitorId   = visitor.Id,
-            HostUserId  = hostUserId,
-            Purpose     = purpose.Trim(),
-            ScheduledAt = now,
-            CheckedInAt = now,
-            Status      = VisitStatus.CheckedIn,
-            Notes       = notes?.Trim()
+            TenantId         = _tenantCtx.TenantId,
+            VisitorId        = visitor.Id,
+            HostUserId       = hostUserId,
+            Purpose          = purpose.Trim(),
+            ScheduledAt      = now,
+            CheckedInAt      = now,
+            Status           = VisitStatus.CheckedIn,
+            Notes            = notes?.Trim(),
+            EntryEntranceId  = entranceId
         };
         _context.Visits.Add(visit);
         await _context.SaveChangesAsync();
 
+        var walkInGate = await EntranceNameAsync(entranceId);
         await _audit.LogAsync("WalkIn", "Visit", visit.Id.ToString(),
-            $"{visitor.FullName} walked in — purpose: {purpose}");
+            $"{visitor.FullName} walked in{walkInGate} — purpose: {purpose}");
 
         _ = _hub.Clients.Group(_tenantCtx.TenantSlug).SendAsync("VisitorCheckedIn",
             visitor.FullName, purpose,
@@ -204,7 +211,7 @@ public class VisitorService : IVisitorService
         return visit;
     }
 
-    public async Task CheckInAsync(Guid visitId)
+    public async Task CheckInAsync(Guid visitId, Guid? entranceId = null)
     {
         var visit = await _context.Visits
             .Include(v => v.Visitor)
@@ -212,16 +219,18 @@ public class VisitorService : IVisitorService
             .FirstOrDefaultAsync(v => v.Id == visitId)
             ?? throw new InvalidOperationException("Visit not found.");
 
-        var blocked = await _blacklist.CheckAsync(visit.Visitor.Email, visit.Visitor.Phone);
+        var blocked = await _blacklist.CheckAsync(visit.Visitor.Email, visit.Visitor.Phone, entranceId);
         if (blocked is not null && blocked.EntryType == Data.Models.BlacklistType.Blacklisted)
             throw new VisitorBlockedException(blocked);
 
-        visit.Status      = VisitStatus.CheckedIn;
-        visit.CheckedInAt = DateTime.UtcNow;
+        visit.Status         = VisitStatus.CheckedIn;
+        visit.CheckedInAt    = DateTime.UtcNow;
+        visit.EntryEntranceId = entranceId;
         await _context.SaveChangesAsync();
 
+        var checkInGate = await EntranceNameAsync(entranceId);
         await _audit.LogAsync("CheckIn", "Visit", visitId.ToString(),
-            $"{visit.Visitor.FullName} checked in");
+            $"{visit.Visitor.FullName} checked in{checkInGate}");
 
         // Real-time push to all staff tabs in this tenant
         _ = _hub.Clients.Group(_tenantCtx.TenantSlug).SendAsync("VisitorCheckedIn",
@@ -237,19 +246,21 @@ public class VisitorService : IVisitorService
         }
     }
 
-    public async Task CheckOutAsync(Guid visitId)
+    public async Task CheckOutAsync(Guid visitId, Guid? entranceId = null)
     {
         var visit = await _context.Visits
             .Include(v => v.Visitor)
             .FirstOrDefaultAsync(v => v.Id == visitId)
             ?? throw new InvalidOperationException("Visit not found.");
 
-        visit.Status       = VisitStatus.CheckedOut;
-        visit.CheckedOutAt = DateTime.UtcNow;
+        visit.Status          = VisitStatus.CheckedOut;
+        visit.CheckedOutAt    = DateTime.UtcNow;
+        visit.ExitEntranceId  = entranceId;
         await _context.SaveChangesAsync();
 
+        var checkOutGate = await EntranceNameAsync(entranceId);
         await _audit.LogAsync("CheckOut", "Visit", visitId.ToString(),
-            $"{visit.Visitor.FullName} checked out");
+            $"{visit.Visitor.FullName} checked out{checkOutGate}");
     }
 
     public async Task CancelAsync(Guid visitId)
@@ -268,6 +279,13 @@ public class VisitorService : IVisitorService
             .Where(u => u.UserType == UserType.Staff)
             .OrderBy(u => u.FullName)
             .ToListAsync();
+    }
+
+    private async Task<string> EntranceNameAsync(Guid? entranceId)
+    {
+        if (entranceId is null) return "";
+        var entrance = await _context.Entrances.FindAsync(entranceId.Value);
+        return entrance is not null ? $" via {entrance.Name}" : "";
     }
 
     private async Task<Visitor> GetOrCreateVisitorAsync(

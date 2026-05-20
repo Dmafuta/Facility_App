@@ -1,0 +1,34 @@
+# ── FacilityApp Caddyfile ──────────────────────────────────────────────────
+#
+# Caddy automatically provisions and renews Let's Encrypt SSL certificates
+# for every domain listed here. No manual cert management needed.
+#
+# Usage:
+#   1. Point your domain(s) DNS A record → your server IP
+#   2. Update the domain names below
+#   3. Run: docker compose up -d
+#
+# ──────────────────────────────────────────────────────────────────────────
+
+# Shared SaaS domain — all tenants accessed via /slug/...
+yourapp.com {
+    reverse_proxy app:8080
+    encode gzip
+
+    # Security headers (supplement what the app sets)
+    header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+}
+
+# Example Professional plan tenant custom domain
+# Add one block per Professional tenant custom domain
+# greatwallgardens.estate {
+#     reverse_proxy app:8080
+#     encode gzip
+#     header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+# }
+#
+# sunsetapartments.com {
+#     reverse_proxy app:8080
+#     encode gzip
+#     header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+# }

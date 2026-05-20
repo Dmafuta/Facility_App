@@ -1,6 +1,10 @@
 @inherits LayoutComponentBase
 @inject TenantContext TenantCtx
+@inject GateContext GateCtx
 @inject ITenantService TenantService
+@inject IEntranceService EntranceSvc
+@inject AuthenticationStateProvider AuthState
+@inject UserManager<ApplicationUser> UserMgr
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @implements IAsyncDisposable
@@ -41,20 +45,66 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (TenantCtx.IsResolved) return;
+        if (!TenantCtx.IsResolved)
+        {
+            var slug = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault();
+            if (!string.IsNullOrEmpty(slug))
+            {
+                var tenant = await TenantService.ResolveBySlugAsync(slug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId      = tenant.Id;
+                    TenantCtx.TenantSlug    = tenant.Slug;
+                    TenantCtx.TenantName    = tenant.Name;
+                    TenantCtx.PrimaryColour = tenant.PrimaryColour;
+                    TenantCtx.LogoUrl       = tenant.LogoUrl;
+                    TenantCtx.IsResolved    = true;
+                }
+            }
+        }
 
-        var slug = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault();
-        if (string.IsNullOrEmpty(slug)) return;
+        if (TenantCtx.IsResolved && !GateCtx.IsSelected)
+        {
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            if (auth.User.Identity?.IsAuthenticated == true)
+            {
+                var isStaff = auth.User.IsInRole("Security") || auth.User.IsInRole("Receptionist") ||
+                              auth.User.IsInRole("Manager")  || auth.User.IsInRole("Admin");
+                if (isStaff)
+                {
+                    var userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    if (userId is not null)
+                    {
+                        try
+                        {
+                            var user = await UserMgr.FindByIdAsync(userId);
+                            if (user?.CurrentEntranceId is not null)
+                            {
+                                var entrance = await EntranceSvc.GetByIdAsync(user.CurrentEntranceId.Value);
+                                if (entrance is not null && entrance.IsActive)
+                                {
+                                    GateCtx.EntranceId   = entrance.Id;
+                                    GateCtx.EntranceName = entrance.Name;
+                                }
+                            }
+                        }
+                        catch { /* gate selection is non-critical */ }
+                    }
 
-        var tenant = await TenantService.ResolveBySlugAsync(slug);
-        if (tenant is null) return;
-
-        TenantCtx.TenantId      = tenant.Id;
-        TenantCtx.TenantSlug    = tenant.Slug;
-        TenantCtx.TenantName    = tenant.Name;
-        TenantCtx.PrimaryColour = tenant.PrimaryColour;
-        TenantCtx.LogoUrl       = tenant.LogoUrl;
-        TenantCtx.IsResolved    = true;
+                    if (!GateCtx.IsSelected)
+                    {
+                        var path = new Uri(Nav.Uri).AbsolutePath;
+                        if (!path.Contains("select-gate", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Only enforce gate selection if entrances have been configured
+                            var activeEntrances = await EntranceSvc.GetActiveAsync();
+                            if (activeEntrances.Count > 0)
+                                Nav.NavigateTo($"{TenantCtx.RouteBase}/select-gate");
+                        }
+                    }
+                }
+            }
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

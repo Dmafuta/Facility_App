@@ -10,5 +10,5 @@ public interface IBlacklistService
     Task RemoveAsync(Guid id);
     Task<(List<BlacklistEntry> Items, int Total)> GetEntriesAsync(
         string? search, string? type, int page = 1, int pageSize = 25);
-    Task<BlacklistEntry?> CheckAsync(string? email, string? phone);
+    Task<BlacklistEntry?> CheckAsync(string? email, string? phone, Guid? entranceId = null);
 }

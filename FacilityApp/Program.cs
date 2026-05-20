@@ -50,6 +50,8 @@ namespace FacilityApp
             // Database
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(connStr));
+            builder.Services.AddDbContextFactory<AppDbContext>(options =>
+                options.UseNpgsql(connStr), ServiceLifetime.Scoped);
 
             // Identity
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -131,7 +133,7 @@ namespace FacilityApp
                     p => p.RequireRole(RoleOccupant));
 
                 options.AddPolicy("CanCheckInVisitors",
-                    p => p.RequireRole(RoleSecurity, RoleReceptionist, RoleManager, RoleAdmin));
+                    p => p.RequireRole(RoleSecurity, RoleManager, RoleAdmin));
 
                 options.AddPolicy("CanManageVisitors",
                     p => p.RequireRole(RoleManager, RoleAdmin));
@@ -156,11 +158,24 @@ namespace FacilityApp
 
                 options.AddPolicy("CanManageIncidents",
                     p => p.RequireRole(RoleManager, RoleAdmin));
+
+                options.AddPolicy("CanAccessParking",
+                    p => p.RequireRole(RoleSecurity, RoleManager, RoleAdmin));
+
+                options.AddPolicy("CanManageParking",
+                    p => p.RequireRole(RoleManager, RoleAdmin));
             });
 
             // Health checks
             builder.Services.AddHealthChecks()
-                .AddDbContextCheck<AppDbContext>("database");
+                .AddDbContextCheck<AppDbContext>("database")
+                .AddCheck("smtp", () =>
+                {
+                    var smtp = builder.Configuration.GetSection("Smtp").Get<SmtpSettings>() ?? new SmtpSettings();
+                    return string.IsNullOrWhiteSpace(smtp.Host)
+                        ? Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Degraded("SMTP not configured — password reset emails will not be delivered.")
+                        : Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy();
+                });
 
             // Rate limiting — per-IP, protects login and general DoS
             builder.Services.AddRateLimiter(rateLimiter =>
@@ -198,6 +213,8 @@ namespace FacilityApp
             // Multi-tenancy
             builder.Services.AddScoped<TenantContext>();
             builder.Services.AddScoped<ITenantService, TenantService>();
+            builder.Services.AddScoped<GateContext>();
+            builder.Services.AddScoped<IEntranceService, EntranceService>();
 
             // Email
             var smtp = builder.Configuration.GetSection("Smtp").Get<SmtpSettings>() ?? new SmtpSettings();
@@ -220,8 +237,13 @@ namespace FacilityApp
             builder.Services.AddScoped<IDocumentService, DocumentService>();
             builder.Services.AddScoped<IIncidentService, IncidentService>();
             builder.Services.AddSingleton<IQrCodeService, QrCodeService>();
+            builder.Services.AddScoped<IParkingService, ParkingService>();
+            builder.Services.AddScoped<IParcelService, ParcelService>();
 
             var app = builder.Build();
+
+            // Run pending EF Core migrations on startup
+            await MigrateAsync(app);
 
             // Seed Identity roles on startup
             await SeedRolesAsync(app);
@@ -448,13 +470,37 @@ namespace FacilityApp
             }
 
             app.MapHub<NotificationHub>("/hubs/notifications");
-            app.MapHealthChecks("/health");
+            app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+            {
+                ResponseWriter = async (ctx, report) =>
+                {
+                    ctx.Response.ContentType = "application/json";
+                    var result = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        status  = report.Status.ToString(),
+                        checks  = report.Entries.Select(e => new
+                        {
+                            name        = e.Key,
+                            status      = e.Value.Status.ToString(),
+                            description = e.Value.Description
+                        })
+                    });
+                    await ctx.Response.WriteAsync(result);
+                }
+            });
 
             app.MapStaticAssets();
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 
             app.Run();
+        }
+
+        private static async Task MigrateAsync(WebApplication app)
+        {
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.Database.MigrateAsync();
         }
 
         private static async Task SeedRolesAsync(WebApplication app)

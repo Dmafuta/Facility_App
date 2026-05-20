@@ -1,0 +1,87 @@
+using FacilityApp.Data;
+using FacilityApp.Data.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace FacilityApp.Services;
+
+public class ParcelService : IParcelService
+{
+    private readonly IDbContextFactory<AppDbContext> _factory;
+    private readonly TenantContext _tenantCtx;
+
+    public ParcelService(IDbContextFactory<AppDbContext> factory, TenantContext tenantCtx)
+    {
+        _factory   = factory;
+        _tenantCtx = tenantCtx;
+    }
+
+    public async Task<List<Parcel>> GetAllAsync(ParcelStatus? status = null)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var query = db.Parcels
+            .Include(p => p.Unit)
+            .Include(p => p.ReceivedBy)
+            .AsQueryable();
+
+        if (status.HasValue)
+            query = query.Where(p => p.Status == status.Value);
+
+        return await query.OrderByDescending(p => p.ReceivedAt).ToListAsync();
+    }
+
+    public async Task<List<Parcel>> GetForUnitAsync(Guid unitId)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        return await db.Parcels
+            .Include(p => p.ReceivedBy)
+            .Where(p => p.UnitId == unitId)
+            .OrderByDescending(p => p.ReceivedAt)
+            .ToListAsync();
+    }
+
+    public async Task<Parcel> ReceiveAsync(Guid? unitId, string recipientName, string? courierName, string description, string receivedById, string? notes)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var parcel = new Parcel
+        {
+            TenantId      = _tenantCtx.TenantId,
+            UnitId        = unitId,
+            RecipientName = recipientName.Trim(),
+            CourierName   = string.IsNullOrWhiteSpace(courierName) ? null : courierName.Trim(),
+            Description   = description.Trim(),
+            ReceivedById  = receivedById,
+            Notes         = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim()
+        };
+        db.Parcels.Add(parcel);
+        await db.SaveChangesAsync();
+        return parcel;
+    }
+
+    public async Task MarkCollectedAsync(Guid id, string collectedByName)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var parcel = await db.Parcels.FindAsync(id)
+            ?? throw new InvalidOperationException("Parcel not found.");
+
+        parcel.Status          = ParcelStatus.Collected;
+        parcel.CollectedAt     = DateTime.UtcNow;
+        parcel.CollectedByName = collectedByName.Trim();
+        await db.SaveChangesAsync();
+    }
+
+    public async Task MarkReturnedAsync(Guid id)
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        var parcel = await db.Parcels.FindAsync(id)
+            ?? throw new InvalidOperationException("Parcel not found.");
+
+        parcel.Status = ParcelStatus.Returned;
+        await db.SaveChangesAsync();
+    }
+
+    public async Task<int> GetPendingCountAsync()
+    {
+        await using var db = await _factory.CreateDbContextAsync();
+        return await db.Parcels.CountAsync(p => p.Status == ParcelStatus.Pending);
+    }
+}

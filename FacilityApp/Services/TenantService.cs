@@ -12,13 +12,14 @@ public class TenantService : ITenantService
         _dataSource = dataSource;
     }
 
-    public async Task<Tenant?> ResolveBySlugAsync(string slug)
+    public async Task<Tenant?> ResolveBySlugAsync(string? slug)
     {
+        if (string.IsNullOrWhiteSpace(slug)) return null;
         await using var conn = await _dataSource.OpenConnectionAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             SELECT "Id","Name","Slug","CustomDomain","IsActive","LogoUrl","PrimaryColour",
-                   "ContactEmail","ContactPhone","Address","Website","CreatedAt"
+                   "ContactEmail","ContactPhone","Address","Website","CreatedAt","Plan"
             FROM tenants
             WHERE "Slug" = @slug AND "IsActive" = true
             LIMIT 1
@@ -28,13 +29,14 @@ public class TenantService : ITenantService
         return await reader.ReadAsync() ? MapTenant(reader) : null;
     }
 
-    public async Task<Tenant?> ResolveByDomainAsync(string host)
+    public async Task<Tenant?> ResolveByDomainAsync(string? host)
     {
+        if (string.IsNullOrWhiteSpace(host)) return null;
         await using var conn = await _dataSource.OpenConnectionAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             SELECT "Id","Name","Slug","CustomDomain","IsActive","LogoUrl","PrimaryColour",
-                   "ContactEmail","ContactPhone","Address","Website","CreatedAt"
+                   "ContactEmail","ContactPhone","Address","Website","CreatedAt","Plan"
             FROM tenants
             WHERE "CustomDomain" = @host AND "IsActive" = true
             LIMIT 1
@@ -58,5 +60,6 @@ public class TenantService : ITenantService
         Address       = r.IsDBNull(9) ? null : r.GetString(9),
         Website       = r.IsDBNull(10) ? null : r.GetString(10),
         CreatedAt     = r.GetDateTime(11),
+        Plan          = (TenantPlan)r.GetInt32(12),
     };
 }

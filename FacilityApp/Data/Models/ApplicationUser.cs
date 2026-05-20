@@ -9,5 +9,6 @@ public class ApplicationUser : IdentityUser
     public string FullName { get; set; } = string.Empty;
     public UserType UserType { get; set; } = UserType.Staff;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public Guid? CurrentEntranceId { get; set; }
     public ICollection<UserUnit> UserUnits { get; set; } = [];
 }

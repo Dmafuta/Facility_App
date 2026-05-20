@@ -1,8 +1,11 @@
 @inject NavigationManager Nav
 @inject TenantContext TenantCtx
+@inject GateContext GateCtx
 @inject IUnitRequestService UnitRequestSvc
 @inject IMaintenanceService MaintenanceSvc
 @inject IIncidentService IncidentSvc
+@inject IParkingService ParkingSvc
+@inject IParcelService ParcelSvc
 
 <div class="top-row ps-3 navbar navbar-dark" style="@BrandingStyle">
     <div class="container-fluid d-flex align-items-center">
@@ -37,6 +40,22 @@
             <div class="text-white fw-semibold" style="font-size: 0.85rem;">@TenantCtx.TenantName</div>
         </div>
     }
+    <AuthorizeView Roles="Admin,Manager,Receptionist,Security">
+        @if (GateCtx.IsSelected)
+        {
+            <div class="px-3 pb-2 d-flex align-items-center justify-content-between">
+                <div>
+                    <small class="text-white-50 text-uppercase fw-semibold" style="font-size: 0.65rem; letter-spacing: 0.08em;">Your Gate</small>
+                    <div class="text-white fw-semibold" style="font-size: 0.85rem;">
+                        <i class="bi bi-door-open me-1"></i>@GateCtx.EntranceName
+                    </div>
+                </div>
+                <a href="@($"{TenantCtx.RouteBase}/select-gate")" class="text-white-50 small" title="Switch gate">
+                    <i class="bi bi-arrow-repeat"></i>
+                </a>
+            </div>
+        }
+    </AuthorizeView>
 
     <!-- ── STAFF NAVIGATION ─────────────────────────────────────── -->
     <AuthorizeView Roles="Admin,Manager,Receptionist,Security">
@@ -73,12 +92,34 @@
                 </NavLink>
             </div>
 
+            <AuthorizeView Policy="CanAccessParking" Context="_park">
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link d-flex align-items-center justify-content-between" href="@($"{TenantCtx.RouteBase}/parking")">
+                        <span><i class="bi bi-p-circle me-2"></i> Parking</span>
+                        @if (_vehiclesInsideCount > 0)
+                        {
+                            <span class="badge bg-success ms-1">@_vehiclesInsideCount</span>
+                        }
+                    </NavLink>
+                </div>
+            </AuthorizeView>
+
             <div class="nav-item px-3">
                 <NavLink class="nav-link d-flex align-items-center justify-content-between" href="@($"{TenantCtx.RouteBase}/incidents")">
                     <span><i class="bi bi-exclamation-triangle me-2"></i> Incidents</span>
                     @if (_openIncidentCount > 0)
                     {
                         <span class="badge bg-danger ms-1">@_openIncidentCount</span>
+                    }
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link d-flex align-items-center justify-content-between" href="@($"{TenantCtx.RouteBase}/parcels")">
+                    <span><i class="bi bi-box-seam me-2"></i> Parcels</span>
+                    @if (_pendingParcelCount > 0)
+                    {
+                        <span class="badge bg-warning text-dark ms-1">@_pendingParcelCount</span>
                     }
                 </NavLink>
             </div>
@@ -118,6 +159,11 @@
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/users")">
                         <i class="bi bi-people me-2"></i> User Management
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/entrances")">
+                        <i class="bi bi-door-open me-2"></i> Entrances
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
@@ -186,6 +232,16 @@
                     <i class="bi bi-tools me-2"></i> Maintenance
                 </NavLink>
             </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/resident/vehicles")">
+                    <i class="bi bi-car-front me-2"></i> My Vehicles
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/resident/parcels")">
+                    <i class="bi bi-box-seam me-2"></i> My Parcels
+                </NavLink>
+            </div>
         </nav>
     </AuthorizeView>
 
@@ -235,6 +291,8 @@
     private int _pendingRequestCount;
     private int _openMaintenanceCount;
     private int _openIncidentCount;
+    private int _vehiclesInsideCount;
+    private int _pendingParcelCount;
 
     protected override async Task OnInitializedAsync()
     {
@@ -243,6 +301,8 @@
             _pendingRequestCount  = await UnitRequestSvc.GetPendingCountAsync();
             _openMaintenanceCount = await MaintenanceSvc.GetOpenCountAsync();
             _openIncidentCount    = await IncidentSvc.GetOpenCountAsync();
+            _vehiclesInsideCount  = await ParkingSvc.GetCurrentlyInsideCountAsync();
+            _pendingParcelCount   = await ParcelSvc.GetPendingCountAsync();
         }
     }
 

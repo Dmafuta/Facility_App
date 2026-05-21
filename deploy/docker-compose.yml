@@ -10,6 +10,7 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=facilityapp;Username=facilityapp;Password=${DB_PASSWORD}"
       Smtp__Host: "${SMTP_HOST}"
       Smtp__Port: "${SMTP_PORT:-587}"

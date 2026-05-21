@@ -1,5 +1,5 @@
 @page "/superadmin/tenants/create"
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout SuperAdminLayout
 @attribute [Authorize(Roles = "SuperAdmin")]
 @inject AppDbContext Db

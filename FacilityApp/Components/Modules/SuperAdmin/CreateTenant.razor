@@ -40,7 +40,7 @@
                     <h6 class="mb-0 fw-semibold">Facility Details</h6>
                 </div>
                 <div class="card-body">
-                    <CascadingValue Value="_editContext">
+                    <EditForm EditContext="_editContext" OnValidSubmit="HandleAsync">
                         <DataAnnotationsValidator />
 
                         @if (_error is not null)
@@ -97,11 +97,11 @@
                             <ValidationMessage For="() => _form.ConfirmPassword" class="text-danger small" />
                         </div>
 
-                        <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="SubmitAsync">
+                        <button type="submit" class="btn btn-primary" disabled="@_busy">
                             @if (_busy) { <span class="spinner-border spinner-border-sm me-1"></span> }
                             Create Tenant &amp; Admin
                         </button>
-                    </CascadingValue>
+                    </EditForm>
                 </div>
             </div>
         }
@@ -132,12 +132,6 @@
     private string _createdSlug = "";
 
     protected override void OnInitialized() => _editContext = new EditContext(_form);
-
-    private async Task SubmitAsync()
-    {
-        if (!_editContext.Validate()) return;
-        await HandleAsync();
-    }
 
     private bool _slugEdited;
 

@@ -436,6 +436,66 @@ namespace FacilityApp
                     });
                 });
 
+                app.MapGet("/dev/seed-superadmin", async (
+                    AppDbContext db,
+                    UserManager<ApplicationUser> userManager,
+                    string? email,
+                    string? password,
+                    string? fullName) =>
+                {
+                    email    ??= "superadmin@platform.local";
+                    password ??= "SuperAdmin1234";
+                    fullName ??= "Platform SuperAdmin";
+
+                    // Create the system tenant if it doesn't exist
+                    var tenant = db.Tenants.IgnoreQueryFilters()
+                                   .FirstOrDefault(t => t.Slug == "platform");
+                    if (tenant is null)
+                    {
+                        tenant = new Tenant
+                        {
+                            Id        = Guid.NewGuid(),
+                            Name      = "Platform",
+                            Slug      = "platform",
+                            IsSystem  = true,
+                            IsActive  = true,
+                            Plan      = TenantPlan.Professional,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        db.Tenants.Add(tenant);
+                        await db.SaveChangesAsync();
+                    }
+
+                    // Create the superadmin user if not present
+                    var existing = await db.Users.IgnoreQueryFilters()
+                                           .FirstOrDefaultAsync(u => u.Email == email);
+                    if (existing is not null)
+                        return Results.Ok($"User {email} already exists.");
+
+                    var user = new ApplicationUser
+                    {
+                        UserName = email,
+                        Email    = email,
+                        FullName = fullName,
+                        TenantId = tenant.Id,
+                        UserType = UserType.Staff
+                    };
+
+                    var result = await userManager.CreateAsync(user, password);
+                    if (!result.Succeeded)
+                        return Results.BadRequest(string.Join(", ", result.Errors.Select(e => e.Description)));
+
+                    await userManager.AddToRoleAsync(user, RoleSuperAdmin);
+
+                    return Results.Ok(new
+                    {
+                        Message   = "SuperAdmin seeded successfully.",
+                        LoginUrl  = "/platform/login",
+                        Email     = email,
+                        Password  = password
+                    });
+                });
+
                 app.MapGet("/dev/grant-superadmin", async (
                     string email,
                     AppDbContext db,

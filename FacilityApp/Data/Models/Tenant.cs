@@ -8,6 +8,9 @@ public class Tenant
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Platform system tenant — hidden from customer-facing tenant lists
+    public bool IsSystem { get; set; } = false;
+
     // Subscription plan
     public TenantPlan Plan { get; set; } = TenantPlan.Starter;
 

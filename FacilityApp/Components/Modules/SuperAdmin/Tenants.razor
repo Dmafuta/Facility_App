@@ -164,6 +164,7 @@ else
     {
         _tenants = await Db.Tenants
             .IgnoreQueryFilters()
+            .Where(t => !t.IsSystem)
             .OrderBy(t => t.Name)
             .ToListAsync();
     }

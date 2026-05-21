@@ -11,6 +11,7 @@ public class TenantContext
     public string? PrimaryColour { get; set; }
     public string? LogoUrl { get; set; }
     public TenantPlan Plan { get; set; } = TenantPlan.Starter;
+    public bool IsSystem { get; set; }
 
     /// <summary>True when the tenant was resolved from a custom hostname (e.g. greatwallgardens.estate).</summary>
     public bool IsCustomDomain { get; set; }

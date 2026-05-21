@@ -19,7 +19,7 @@ public class TenantService : ITenantService
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             SELECT "Id","Name","Slug","CustomDomain","IsActive","LogoUrl","PrimaryColour",
-                   "ContactEmail","ContactPhone","Address","Website","CreatedAt","Plan"
+                   "ContactEmail","ContactPhone","Address","Website","CreatedAt","Plan","IsSystem"
             FROM tenants
             WHERE "Slug" = @slug AND "IsActive" = true
             LIMIT 1
@@ -36,7 +36,7 @@ public class TenantService : ITenantService
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             SELECT "Id","Name","Slug","CustomDomain","IsActive","LogoUrl","PrimaryColour",
-                   "ContactEmail","ContactPhone","Address","Website","CreatedAt","Plan"
+                   "ContactEmail","ContactPhone","Address","Website","CreatedAt","Plan","IsSystem"
             FROM tenants
             WHERE "CustomDomain" = @host AND "IsActive" = true
             LIMIT 1
@@ -61,5 +61,6 @@ public class TenantService : ITenantService
         Website       = r.IsDBNull(10) ? null : r.GetString(10),
         CreatedAt     = r.GetDateTime(11),
         Plan          = (TenantPlan)r.GetInt32(12),
+        IsSystem      = r.GetBoolean(13),
     };
 }

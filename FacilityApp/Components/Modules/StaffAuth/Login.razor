@@ -214,6 +214,14 @@
                 return;
             }
 
+            // SuperAdmin on a system tenant → platform control panel
+            var tenant = await TenantService.ResolveBySlugAsync(TenantCtx.TenantSlug);
+            if (tenant?.IsSystem == true && await UserManager.IsInRoleAsync(user, "SuperAdmin"))
+            {
+                Nav.NavigateTo("/superadmin/dashboard", forceLoad: true);
+                return;
+            }
+
             var redirect = !string.IsNullOrEmpty(ReturnUrl) && ReturnUrl.StartsWith('/')
                 ? ReturnUrl
                 : $"{TenantCtx.RouteBase}/dashboard";

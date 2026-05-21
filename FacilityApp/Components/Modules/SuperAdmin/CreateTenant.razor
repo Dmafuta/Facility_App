@@ -1,5 +1,5 @@
 @page "/superadmin/tenants/create"
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@rendermode InteractiveServer
 @layout SuperAdminLayout
 @attribute [Authorize(Roles = "SuperAdmin")]
 @inject AppDbContext Db
@@ -93,7 +93,7 @@
                             <ValidationMessage For="() => _form.ConfirmPassword" class="text-danger small" />
                         </div>
 
-                        <button type="submit" class="btn btn-primary" disabled="@_busy">
+                        <button type="submit" class="btn btn-primary" disabled="@(_busy || !_ready)">
                             @if (_busy) { <span class="spinner-border spinner-border-sm me-1"></span> }
                             Create Tenant &amp; Admin
                         </button>
@@ -123,8 +123,14 @@
     private CreateForm _form = new();
     private bool _busy;
     private bool _done;
+    private bool _ready;
     private string? _error;
     private string _createdSlug = "";
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender) { _ready = true; StateHasChanged(); }
+    }
 
     private async Task HandleAsync()
     {

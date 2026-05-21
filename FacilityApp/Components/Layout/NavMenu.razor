@@ -1,4 +1,3 @@
-@implements IDisposable
 @inject NavigationManager Nav
 @inject TenantContext TenantCtx
 @inject GateContext GateCtx
@@ -63,234 +62,264 @@
     <AuthorizeView Roles="Admin,Manager,Receptionist,Security">
         <nav class="nav flex-column mt-1">
 
-            <!-- Dashboard — always visible, never folded -->
+            <!-- Dashboard — always visible -->
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/dashboard")" Match="NavLinkMatch.All">
                     <i class="bi bi-speedometer2 me-2"></i>Dashboard
                 </NavLink>
             </div>
 
-            <!-- ── Access Control ── -->
-            <div class="nav-folder">
-                <button class="nav-folder-btn @(IsOpen("access") ? "open" : "")"
-                        @onclick='() => ToggleGroup("access")'
-                        @onclick:stopPropagation="true">
-                    <i class="bi bi-shield-lock me-2"></i>
-                    <span class="flex-grow-1">Access Control</span>
-                    <i class="bi bi-chevron-right nav-chevron"></i>
-                </button>
-                @if (IsOpen("access"))
-                {
-                    <div class="nav-folder-children">
-                        <AuthorizeView Policy="CanCheckInVisitors" Context="_ci">
-                            <div class="nav-item">
-                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/check-in")">
-                                    <i class="bi bi-qr-code-scan me-2"></i>Check-In
-                                </NavLink>
-                            </div>
-                        </AuthorizeView>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/visitors")">
-                                <i class="bi bi-people me-2"></i>Visitors
-                            </NavLink>
-                        </div>
-                        <AuthorizeView Policy="CanManageAccess" Context="_ac">
-                            <div class="nav-item">
-                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/access/passes")">
-                                    <i class="bi bi-card-checklist me-2"></i>Passes
-                                </NavLink>
-                            </div>
-                            <div class="nav-item">
-                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/access/blacklist")">
-                                    <i class="bi bi-person-x me-2"></i>Blacklist
-                                </NavLink>
-                            </div>
-                        </AuthorizeView>
-                    </div>
-                }
-            </div>
+            <!-- Accordion wrapper — enforces one-open-at-a-time -->
+            <div id="nav-accordion">
 
-            <!-- ── Operations ── -->
-            <div class="nav-folder">
-                <button class="nav-folder-btn @(IsOpen("operations") ? "open" : "")"
-                        @onclick='() => ToggleGroup("operations")'
-                        @onclick:stopPropagation="true">
-                    <i class="bi bi-grid me-2"></i>
-                    <span class="flex-grow-1">Operations</span>
-                    @if (_vehiclesInsideCount + _pendingParcelCount + _openMaintenanceCount > 0)
-                    {
-                        <span class="folder-badge">@(_vehiclesInsideCount + _pendingParcelCount + _openMaintenanceCount)</span>
-                    }
-                    <i class="bi bi-chevron-right nav-chevron"></i>
-                </button>
-                @if (IsOpen("operations"))
-                {
-                    <div class="nav-folder-children">
-                        <AuthorizeView Policy="CanAccessParking" Context="_park">
-                            <div class="nav-item">
-                                <NavLink class="nav-link d-flex align-items-center justify-content-between"
-                                         href="@($"{TenantCtx.RouteBase}/parking")">
-                                    <span><i class="bi bi-p-circle me-2"></i>Parking</span>
-                                    @if (_vehiclesInsideCount > 0)
-                                    {
-                                        <span class="badge bg-success ms-1">@_vehiclesInsideCount</span>
-                                    }
-                                </NavLink>
-                            </div>
-                        </AuthorizeView>
-                        <div class="nav-item">
-                            <NavLink class="nav-link d-flex align-items-center justify-content-between"
-                                     href="@($"{TenantCtx.RouteBase}/parcels")">
-                                <span><i class="bi bi-box-seam me-2"></i>Parcels</span>
-                                @if (_pendingParcelCount > 0)
-                                {
-                                    <span class="badge bg-warning text-dark ms-1">@_pendingParcelCount</span>
-                                }
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link d-flex align-items-center justify-content-between"
-                                     href="@($"{TenantCtx.RouteBase}/maintenance")">
-                                <span><i class="bi bi-tools me-2"></i>Maintenance</span>
-                                @if (_openMaintenanceCount > 0)
-                                {
-                                    <span class="badge bg-primary ms-1">@_openMaintenanceCount</span>
-                                }
-                            </NavLink>
-                        </div>
-                    </div>
-                }
-            </div>
-
-            <!-- ── Residents ── -->
-            <AuthorizeView Policy="CanManageUnits" Context="_resFolder">
+                <!-- ── Access Control ── -->
                 <div class="nav-folder">
-                    <button class="nav-folder-btn @(IsOpen("residents") ? "open" : "")"
-                            @onclick='() => ToggleGroup("residents")'
-                            @onclick:stopPropagation="true">
-                        <i class="bi bi-house-door me-2"></i>
-                        <span class="flex-grow-1">Residents</span>
-                        @if (_pendingRequestCount > 0)
-                        {
-                            <span class="folder-badge">@_pendingRequestCount</span>
-                        }
+                    <button class="nav-folder-btn @(!IsOpen("access") ? "collapsed" : "")"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#folder-access"
+                            aria-expanded="@IsOpen("access").ToString().ToLower()"
+                            aria-controls="folder-access"
+                            onclick="event.stopPropagation()">
+                        <i class="bi bi-shield-lock me-2"></i>
+                        <span class="flex-grow-1">Access Control</span>
                         <i class="bi bi-chevron-right nav-chevron"></i>
                     </button>
-                    @if (IsOpen("residents"))
-                    {
+                    <div id="folder-access"
+                         class="collapse @(IsOpen("access") ? "show" : "")"
+                         data-bs-parent="#nav-accordion">
                         <div class="nav-folder-children">
-                            <AuthorizeView Policy="CanManageUsers" Context="_mu2">
+                            <AuthorizeView Policy="CanCheckInVisitors" Context="_ci">
                                 <div class="nav-item">
-                                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/users")">
-                                        <i class="bi bi-person-lines-fill me-2"></i>Users
+                                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/check-in")">
+                                        <i class="bi bi-qr-code-scan me-2"></i>Check-In
                                     </NavLink>
                                 </div>
                             </AuthorizeView>
                             <div class="nav-item">
-                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/units")">
-                                    <i class="bi bi-house-door me-2"></i>Units
+                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/visitors")">
+                                    <i class="bi bi-people me-2"></i>Visitors
+                                </NavLink>
+                            </div>
+                            <AuthorizeView Policy="CanManageAccess" Context="_ac">
+                                <div class="nav-item">
+                                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/access/passes")">
+                                        <i class="bi bi-card-checklist me-2"></i>Passes
+                                    </NavLink>
+                                </div>
+                                <div class="nav-item">
+                                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/access/blacklist")">
+                                        <i class="bi bi-person-x me-2"></i>Blacklist
+                                    </NavLink>
+                                </div>
+                            </AuthorizeView>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Operations ── -->
+                <div class="nav-folder">
+                    <button class="nav-folder-btn @(!IsOpen("operations") ? "collapsed" : "")"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#folder-operations"
+                            aria-expanded="@IsOpen("operations").ToString().ToLower()"
+                            aria-controls="folder-operations"
+                            onclick="event.stopPropagation()">
+                        <i class="bi bi-grid me-2"></i>
+                        <span class="flex-grow-1">Operations</span>
+                        @if (_vehiclesInsideCount + _pendingParcelCount + _openMaintenanceCount > 0)
+                        {
+                            <span class="folder-badge me-1">@(_vehiclesInsideCount + _pendingParcelCount + _openMaintenanceCount)</span>
+                        }
+                        <i class="bi bi-chevron-right nav-chevron"></i>
+                    </button>
+                    <div id="folder-operations"
+                         class="collapse @(IsOpen("operations") ? "show" : "")"
+                         data-bs-parent="#nav-accordion">
+                        <div class="nav-folder-children">
+                            <AuthorizeView Policy="CanAccessParking" Context="_park">
+                                <div class="nav-item">
+                                    <NavLink class="nav-link d-flex align-items-center justify-content-between"
+                                             href="@($"{TenantCtx.RouteBase}/parking")">
+                                        <span><i class="bi bi-p-circle me-2"></i>Parking</span>
+                                        @if (_vehiclesInsideCount > 0)
+                                        {
+                                            <span class="badge bg-success ms-1">@_vehiclesInsideCount</span>
+                                        }
+                                    </NavLink>
+                                </div>
+                            </AuthorizeView>
+                            <div class="nav-item">
+                                <NavLink class="nav-link d-flex align-items-center justify-content-between"
+                                         href="@($"{TenantCtx.RouteBase}/parcels")">
+                                    <span><i class="bi bi-box-seam me-2"></i>Parcels</span>
+                                    @if (_pendingParcelCount > 0)
+                                    {
+                                        <span class="badge bg-warning text-dark ms-1">@_pendingParcelCount</span>
+                                    }
                                 </NavLink>
                             </div>
                             <div class="nav-item">
                                 <NavLink class="nav-link d-flex align-items-center justify-content-between"
-                                         href="@($"{TenantCtx.RouteBase}/admin/unit-requests")">
-                                    <span><i class="bi bi-house-check me-2"></i>Unit Requests</span>
-                                    @if (_pendingRequestCount > 0)
+                                         href="@($"{TenantCtx.RouteBase}/maintenance")">
+                                    <span><i class="bi bi-tools me-2"></i>Maintenance</span>
+                                    @if (_openMaintenanceCount > 0)
                                     {
-                                        <span class="badge bg-warning text-dark ms-1">@_pendingRequestCount</span>
+                                        <span class="badge bg-primary ms-1">@_openMaintenanceCount</span>
                                     }
                                 </NavLink>
                             </div>
                         </div>
-                    }
+                    </div>
                 </div>
-            </AuthorizeView>
 
-            <!-- ── Communications ── -->
-            <AuthorizeView Policy="CanManageUsers" Context="_commsFolder">
+                <!-- ── Residents ── -->
+                <AuthorizeView Policy="CanManageUnits" Context="_resFolder">
+                    <div class="nav-folder">
+                        <button class="nav-folder-btn @(!IsOpen("residents") ? "collapsed" : "")"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#folder-residents"
+                                aria-expanded="@IsOpen("residents").ToString().ToLower()"
+                                aria-controls="folder-residents"
+                                onclick="event.stopPropagation()">
+                            <i class="bi bi-house-door me-2"></i>
+                            <span class="flex-grow-1">Residents</span>
+                            @if (_pendingRequestCount > 0)
+                            {
+                                <span class="folder-badge me-1">@_pendingRequestCount</span>
+                            }
+                            <i class="bi bi-chevron-right nav-chevron"></i>
+                        </button>
+                        <div id="folder-residents"
+                             class="collapse @(IsOpen("residents") ? "show" : "")"
+                             data-bs-parent="#nav-accordion">
+                            <div class="nav-folder-children">
+                                <AuthorizeView Policy="CanManageUsers" Context="_mu2">
+                                    <div class="nav-item">
+                                        <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/users")">
+                                            <i class="bi bi-person-lines-fill me-2"></i>Users
+                                        </NavLink>
+                                    </div>
+                                </AuthorizeView>
+                                <div class="nav-item">
+                                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/units")">
+                                        <i class="bi bi-house-door me-2"></i>Units
+                                    </NavLink>
+                                </div>
+                                <div class="nav-item">
+                                    <NavLink class="nav-link d-flex align-items-center justify-content-between"
+                                             href="@($"{TenantCtx.RouteBase}/admin/unit-requests")">
+                                        <span><i class="bi bi-house-check me-2"></i>Unit Requests</span>
+                                        @if (_pendingRequestCount > 0)
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1">@_pendingRequestCount</span>
+                                        }
+                                    </NavLink>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </AuthorizeView>
+
+                <!-- ── Communications ── -->
+                <AuthorizeView Policy="CanManageUsers" Context="_commsFolder">
+                    <div class="nav-folder">
+                        <button class="nav-folder-btn @(!IsOpen("communications") ? "collapsed" : "")"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#folder-communications"
+                                aria-expanded="@IsOpen("communications").ToString().ToLower()"
+                                aria-controls="folder-communications"
+                                onclick="event.stopPropagation()">
+                            <i class="bi bi-megaphone me-2"></i>
+                            <span class="flex-grow-1">Communications</span>
+                            <i class="bi bi-chevron-right nav-chevron"></i>
+                        </button>
+                        <div id="folder-communications"
+                             class="collapse @(IsOpen("communications") ? "show" : "")"
+                             data-bs-parent="#nav-accordion">
+                            <div class="nav-folder-children">
+                                <div class="nav-item">
+                                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/announcements")">
+                                        <i class="bi bi-megaphone me-2"></i>Announcements
+                                    </NavLink>
+                                </div>
+                                <div class="nav-item">
+                                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/documents")">
+                                        <i class="bi bi-folder2-open me-2"></i>Documents
+                                    </NavLink>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </AuthorizeView>
+
+                <!-- ── Management ── -->
                 <div class="nav-folder">
-                    <button class="nav-folder-btn @(IsOpen("communications") ? "open" : "")"
-                            @onclick='() => ToggleGroup("communications")'
-                            @onclick:stopPropagation="true">
-                        <i class="bi bi-megaphone me-2"></i>
-                        <span class="flex-grow-1">Communications</span>
+                    <button class="nav-folder-btn @(!IsOpen("management") ? "collapsed" : "")"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#folder-management"
+                            aria-expanded="@IsOpen("management").ToString().ToLower()"
+                            aria-controls="folder-management"
+                            onclick="event.stopPropagation()">
+                        <i class="bi bi-briefcase me-2"></i>
+                        <span class="flex-grow-1">Management</span>
+                        @if (_openIncidentCount > 0)
+                        {
+                            <span class="folder-badge folder-badge-danger me-1">@_openIncidentCount</span>
+                        }
                         <i class="bi bi-chevron-right nav-chevron"></i>
                     </button>
-                    @if (IsOpen("communications"))
-                    {
+                    <div id="folder-management"
+                         class="collapse @(IsOpen("management") ? "show" : "")"
+                         data-bs-parent="#nav-accordion">
                         <div class="nav-folder-children">
+                            <AuthorizeView Policy="CanViewReports" Context="_rp2">
+                                <div class="nav-item">
+                                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/reports")">
+                                        <i class="bi bi-bar-chart-line me-2"></i>Reports
+                                    </NavLink>
+                                </div>
+                            </AuthorizeView>
                             <div class="nav-item">
-                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/announcements")">
-                                    <i class="bi bi-megaphone me-2"></i>Announcements
+                                <NavLink class="nav-link d-flex align-items-center justify-content-between"
+                                         href="@($"{TenantCtx.RouteBase}/incidents")">
+                                    <span><i class="bi bi-exclamation-triangle me-2"></i>Incidents</span>
+                                    @if (_openIncidentCount > 0)
+                                    {
+                                        <span class="badge bg-danger ms-1">@_openIncidentCount</span>
+                                    }
                                 </NavLink>
                             </div>
                             <div class="nav-item">
-                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/documents")">
-                                    <i class="bi bi-folder2-open me-2"></i>Documents
+                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/facilities")">
+                                    <i class="bi bi-building me-2"></i>Facilities
                                 </NavLink>
                             </div>
+                            <AuthorizeView Policy="CanManageUsers" Context="_mu3">
+                                <div class="nav-item">
+                                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/entrances")">
+                                        <i class="bi bi-door-open me-2"></i>Entrances
+                                    </NavLink>
+                                </div>
+                            </AuthorizeView>
+                            <AuthorizeView Roles="Admin" Context="_adm2">
+                                <div class="nav-item">
+                                    <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/audit-log")">
+                                        <i class="bi bi-journal-text me-2"></i>Audit Log
+                                    </NavLink>
+                                </div>
+                            </AuthorizeView>
                         </div>
-                    }
-                </div>
-            </AuthorizeView>
-
-            <!-- ── Management ── -->
-            <div class="nav-folder">
-                <button class="nav-folder-btn @(IsOpen("management") ? "open" : "")"
-                        @onclick='() => ToggleGroup("management")'
-                        @onclick:stopPropagation="true">
-                    <i class="bi bi-briefcase me-2"></i>
-                    <span class="flex-grow-1">Management</span>
-                    @if (_openIncidentCount > 0)
-                    {
-                        <span class="folder-badge folder-badge-danger">@_openIncidentCount</span>
-                    }
-                    <i class="bi bi-chevron-right nav-chevron"></i>
-                </button>
-                @if (IsOpen("management"))
-                {
-                    <div class="nav-folder-children">
-                        <AuthorizeView Policy="CanViewReports" Context="_rp2">
-                            <div class="nav-item">
-                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/reports")">
-                                    <i class="bi bi-bar-chart-line me-2"></i>Reports
-                                </NavLink>
-                            </div>
-                        </AuthorizeView>
-                        <div class="nav-item">
-                            <NavLink class="nav-link d-flex align-items-center justify-content-between"
-                                     href="@($"{TenantCtx.RouteBase}/incidents")">
-                                <span><i class="bi bi-exclamation-triangle me-2"></i>Incidents</span>
-                                @if (_openIncidentCount > 0)
-                                {
-                                    <span class="badge bg-danger ms-1">@_openIncidentCount</span>
-                                }
-                            </NavLink>
-                        </div>
-                        <div class="nav-item">
-                            <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/facilities")">
-                                <i class="bi bi-building me-2"></i>Facilities
-                            </NavLink>
-                        </div>
-                        <AuthorizeView Policy="CanManageUsers" Context="_mu3">
-                            <div class="nav-item">
-                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/entrances")">
-                                    <i class="bi bi-door-open me-2"></i>Entrances
-                                </NavLink>
-                            </div>
-                        </AuthorizeView>
-                        <AuthorizeView Roles="Admin" Context="_adm2">
-                            <div class="nav-item">
-                                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/admin/audit-log")">
-                                    <i class="bi bi-journal-text me-2"></i>Audit Log
-                                </NavLink>
-                            </div>
-                        </AuthorizeView>
                     </div>
-                }
-            </div>
+                </div>
 
-            <!-- Settings — standalone at the bottom -->
+            </div><!-- /#nav-accordion -->
+
+            <!-- Settings — standalone -->
             <div class="nav-item px-3 mt-1">
                 <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/settings")">
                     <i class="bi bi-gear me-2"></i>Settings
@@ -382,12 +411,10 @@
     private int _openIncidentCount;
     private int _vehiclesInsideCount;
     private int _pendingParcelCount;
-
     private string? _openGroup;
 
     protected override async Task OnInitializedAsync()
     {
-        Nav.LocationChanged += OnLocationChanged;
         DetectCurrentGroup();
 
         if (TenantCtx.IsResolved)
@@ -400,38 +427,22 @@
         }
     }
 
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-    {
-        DetectCurrentGroup();
-        InvokeAsync(StateHasChanged);
-    }
-
     private void DetectCurrentGroup()
     {
         var path = new Uri(Nav.Uri).AbsolutePath.ToLowerInvariant();
-
-        var detected = path switch
+        _openGroup = path switch
         {
-            var p when p.Contains("/check-in") || p.Contains("/visitors") || p.Contains("/access/") => "access",
-            var p when p.Contains("/parking")  || p.Contains("/parcels")  || p.Contains("/maintenance") => "operations",
+            var p when p.Contains("/check-in")   || p.Contains("/visitors")  || p.Contains("/access/")        => "access",
+            var p when p.Contains("/parking")    || p.Contains("/parcels")   || p.Contains("/maintenance")    => "operations",
             var p when p.Contains("/admin/users") || p.Contains("/admin/units") || p.Contains("/admin/unit-requests") => "residents",
-            var p when p.Contains("/admin/announcements") || p.Contains("/admin/documents") => "communications",
-            var p when p.Contains("/reports")  || p.Contains("/incidents") || p.Contains("/admin/audit")
-                    || p.Contains("/admin/entrances") || p.Contains("/facilities") => "management",
+            var p when p.Contains("/admin/announcements") || p.Contains("/admin/documents")                   => "communications",
+            var p when p.Contains("/reports")    || p.Contains("/incidents") || p.Contains("/admin/audit")
+                    || p.Contains("/admin/entrances") || p.Contains("/facilities")                            => "management",
             _ => null
         };
-
-        if (detected is not null)
-            _openGroup = detected;
     }
 
-    private void ToggleGroup(string name) =>
-        _openGroup = _openGroup == name ? null : name;
-
     private bool IsOpen(string name) => _openGroup == name;
-
-    public void Dispose() =>
-        Nav.LocationChanged -= OnLocationChanged;
 
     private string BrandingStyle =>
         !string.IsNullOrEmpty(TenantCtx.PrimaryColour)
@@ -466,19 +477,19 @@
         color: #fff;
     }
 
-    .nav-folder-btn.open {
+    .nav-folder-btn[aria-expanded="true"] {
         background: rgba(255, 255, 255, .12);
         color: #fff;
     }
 
-    /* ── Chevron ─────────────────────────────────────────────── */
+    /* ── Chevron — driven by aria-expanded set by Bootstrap ──── */
     .nav-chevron {
         font-size: 0.68rem;
         flex-shrink: 0;
         transition: transform .2s ease;
     }
 
-    .nav-folder-btn.open .nav-chevron {
+    .nav-folder-btn[aria-expanded="true"] .nav-chevron {
         transform: rotate(90deg);
     }
 
@@ -506,7 +517,7 @@
         background: rgba(255, 255, 255, .09);
     }
 
-    /* ── Folder badge (summary count shown on closed folders) ── */
+    /* ── Folder badge ────────────────────────────────────────── */
     .folder-badge {
         display: inline-flex;
         align-items: center;
@@ -519,7 +530,6 @@
         border-radius: 9px;
         background: rgba(99, 102, 241, .75);
         color: #fff;
-        margin-right: 6px;
     }
 
     .folder-badge-danger {

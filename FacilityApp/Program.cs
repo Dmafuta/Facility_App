@@ -563,6 +563,27 @@ namespace FacilityApp
                 }
             });
 
+            // Explicit endpoint for blazor.web.js — UseStaticFiles misses it when the
+            // published filename is fingerprinted (e.g. blazor.web.<hash>.js in .NET 10).
+            app.MapGet("/_framework/blazor.web.js", async (HttpContext ctx, IWebHostEnvironment env) =>
+            {
+                var webRoot = env.WebRootPath
+                    ?? Path.Combine(AppContext.BaseDirectory, "wwwroot");
+                var dir = Path.Combine(webRoot, "_framework");
+
+                string? file = null;
+                var plain = Path.Combine(dir, "blazor.web.js");
+                if (File.Exists(plain))
+                    file = plain;
+                else if (Directory.Exists(dir))
+                    file = Directory.GetFiles(dir, "blazor.web*.js").FirstOrDefault();
+
+                if (file is null) { ctx.Response.StatusCode = 404; return; }
+                ctx.Response.ContentType = "application/javascript";
+                ctx.Response.Headers.CacheControl = "no-cache";
+                await ctx.Response.SendFileAsync(file);
+            });
+
             app.MapStaticAssets();
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();

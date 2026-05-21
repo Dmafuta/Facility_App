@@ -1,4 +1,5 @@
 @page "/{TenantSlug}/admin/users"
+@page "/admin/users"
 @rendermode InteractiveServer
 @attribute [Authorize(Policy = "CanManageUsers")]
 @inject UserManager<ApplicationUser> UserManager

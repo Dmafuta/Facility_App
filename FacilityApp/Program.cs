@@ -281,6 +281,7 @@ namespace FacilityApp
                 await next();
             });
 
+            app.UseStaticFiles(); // serves _framework/blazor.web.js and other wwwroot files
             app.UseRateLimiter();
             app.UseMiddleware<FacilityApp.Middleware.TenantDomainMiddleware>();
             app.UseAuthentication();

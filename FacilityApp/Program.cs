@@ -4,6 +4,7 @@ using FacilityApp.Data.Models;
 using FacilityApp.Hubs;
 using FacilityApp.Services;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -254,6 +255,13 @@ namespace FacilityApp
 
             // Seed Identity roles on startup
             await SeedRolesAsync(app);
+
+            // Trust the reverse-proxy (Caddy) forwarded headers so the app
+            // knows its public scheme (https) and host (greatwallgardens.estate)
+            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            {
+                ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
+            });
 
             if (!app.Environment.IsDevelopment())
             {

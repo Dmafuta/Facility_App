@@ -335,9 +335,9 @@ namespace FacilityApp
                     var plain = Path.Combine(searchRoot, "blazor.web.js");
                     if (File.Exists(plain)) { blazorJsPath = plain; break; }
 
-                    // Otherwise find the fingerprinted file
+                    // Otherwise find any blazor.web variant (fingerprinted or otherwise)
                     var fingerprinted = Directory
-                        .GetFiles(searchRoot, "blazor.web.*.js")
+                        .GetFiles(searchRoot, "blazor.web*.js")
                         .Where(f => !f.EndsWith(".map", StringComparison.OrdinalIgnoreCase))
                         .FirstOrDefault();
                     if (fingerprinted != null) { blazorJsPath = fingerprinted; break; }

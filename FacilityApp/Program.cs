@@ -312,7 +312,21 @@ namespace FacilityApp
                 await next();
             });
 
-            app.UseStaticFiles(); // serves _framework/blazor.web.js and other wwwroot files
+            app.UseStaticFiles(); // serves wwwroot files including _framework/ copies
+
+            // Fallback: also serve /_framework/* from the content-root _framework/ directory.
+            // In some .NET 10 publish layouts the framework JS files land next to the DLL
+            // rather than inside wwwroot, so UseStaticFiles above misses them.
+            var contentFramework = Path.Combine(app.Environment.ContentRootPath, "_framework");
+            if (Directory.Exists(contentFramework))
+            {
+                app.UseStaticFiles(new StaticFileOptions
+                {
+                    FileProvider   = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(contentFramework),
+                    RequestPath    = "/_framework",
+                    ServeUnknownFileTypes = false,
+                });
+            }
             app.UseRateLimiter();
             app.UseCors("BlazorHub"); // must be before UseAuthentication for SignalR WebSocket
             app.UseMiddleware<FacilityApp.Middleware.TenantDomainMiddleware>();

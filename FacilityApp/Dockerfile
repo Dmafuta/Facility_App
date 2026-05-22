@@ -9,15 +9,22 @@ COPY . ./
 RUN dotnet publish -c Release -o /app/publish --no-restore
 
 # .NET 10 fingerprints blazor.web.js (e.g. blazor.web.abc123.js).
-# Create a plain-URL copy so UseStaticFiles can serve /_framework/blazor.web.js
-# when @Assets doesn't resolve the fingerprint correctly (e.g. manifest not loaded).
+# Create plain-URL copies so UseStaticFiles can serve /_framework/blazor.web.js
+# when @Assets doesn't resolve the fingerprint from the manifest.
+# We copy to both the original directory AND wwwroot/_framework/ to cover all
+# possible .NET 10 publish layouts (content-root vs wwwroot).
 RUN set -e; \
     fp=$(find /app/publish -path "*/_framework/blazor.web.*.js" ! -name "*.map" | head -1); \
     if [ -n "$fp" ]; then \
+        echo "Found fingerprinted blazor.web.js: $fp"; \
         cp "$fp" "$(dirname "$fp")/blazor.web.js"; \
-        echo "Created plain copy from: $fp"; \
+        mkdir -p /app/publish/wwwroot/_framework; \
+        cp "$fp" /app/publish/wwwroot/_framework/blazor.web.js; \
+        echo "Plain copies created."; \
     else \
-        echo "WARNING: fingerprinted blazor.web.js not found — skipping copy"; \
+        echo "WARNING: fingerprinted blazor.web.js not found — listing _framework dirs:"; \
+        find /app/publish -name "_framework" -type d; \
+        find /app/publish -name "blazor*" 2>/dev/null || true; \
     fi
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────

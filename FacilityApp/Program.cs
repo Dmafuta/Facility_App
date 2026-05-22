@@ -46,6 +46,26 @@ namespace FacilityApp
 
             builder.Services.AddSignalR();
 
+            // CORS for the Blazor SignalR circuit (/_blazor) and notification hub.
+            // When an explicit CORS policy with AllowCredentials() is present,
+            // ASP.NET Core SignalR defers origin validation to CORS instead of
+            // doing its own same-origin check — this is the recommended approach
+            // for production deployments behind a reverse proxy.
+            var allowedOrigins = builder.Configuration
+                .GetSection("AllowedOrigins").Get<string[]>()
+                ?? [];
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("BlazorHub", policy =>
+                {
+                    if (allowedOrigins.Length > 0)
+                        policy.WithOrigins(allowedOrigins);
+                    else
+                        policy.SetIsOriginAllowed(_ => true); // dev / unconfigured fallback
+                    policy.AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+                });
+            });
+
             // Singleton Npgsql data source — used by TenantService for concurrent-safe tenant resolution
             builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(connStr!));
 
@@ -218,17 +238,14 @@ namespace FacilityApp
                 .SetApplicationName("FacilityApp")
                 .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
 
-            // Trust Caddy's forwarded headers regardless of proxy IP.
-            // ASPNETCORE_FORWARDEDHEADERS_ENABLED=true (docker-compose) registers ForwardedHeaders
-            // middleware via IStartupFilter — it runs before all app middleware and reads its config
-            // from IOptions<ForwardedHeadersOptions>. Configure here so that early middleware pass
-            // correctly sets Host=greatwallgardens.estate and Scheme=https, which SignalR origin
-            // validation requires for the /_blazor WebSocket circuit to connect.
+            // Trust Caddy's X-Forwarded-For (real client IP) and X-Forwarded-Proto (https).
+            // XForwardedHost is NOT needed — Caddy is configured with header_up Host {host}
+            // so the app receives the real hostname directly in the Host header.
+            // KnownProxies/Networks are cleared so Caddy's Docker-internal IP is trusted.
             builder.Services.Configure<ForwardedHeadersOptions>(options =>
             {
                 options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
-                                         | ForwardedHeaders.XForwardedProto
-                                         | ForwardedHeaders.XForwardedHost;
+                                         | ForwardedHeaders.XForwardedProto;
                 options.KnownProxies.Clear();
                 options.KnownIPNetworks.Clear();
             });
@@ -291,6 +308,7 @@ namespace FacilityApp
 
             app.UseStaticFiles(); // serves _framework/blazor.web.js and other wwwroot files
             app.UseRateLimiter();
+            app.UseCors("BlazorHub"); // must be before UseAuthentication for SignalR WebSocket
             app.UseMiddleware<FacilityApp.Middleware.TenantDomainMiddleware>();
             app.UseAuthentication();
             app.UseAuthorization();

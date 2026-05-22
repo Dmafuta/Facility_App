@@ -16,9 +16,14 @@
 
 greatwallgardens.estate {
     reverse_proxy app:8080 {
-        # Forward the original public host so ASP.NET Core's SignalR origin
-        # validation sees greatwallgardens.estate instead of app:8080
-        header_up X-Forwarded-Host {host}
+        # Preserve the original public hostname so ASP.NET Core sees
+        # Host: greatwallgardens.estate — required for SignalR WebSocket
+        # origin validation (Origin header must match Host header or the
+        # /_blazor circuit is rejected with 403 and all buttons go dead).
+        header_up Host {host}
+
+        # Pass real client IP and protocol for rate limiting / HTTPS awareness
+        header_up X-Forwarded-For {remote_host}
         header_up X-Forwarded-Proto {scheme}
     }
     encode gzip

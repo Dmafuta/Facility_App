@@ -293,7 +293,13 @@ namespace FacilityApp
                 app.UseExceptionHandler("/Error");
             }
 
-            app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+            // Exclude Blazor framework paths from status-code re-execution so a 404 on
+            // /_framework/blazor.web.js is never converted to an HTML page (which causes
+            // "Refused to execute script" MIME-type errors in the browser).
+            app.UseWhen(
+                ctx => !ctx.Request.Path.StartsWithSegments("/_framework") &&
+                       !ctx.Request.Path.StartsWithSegments("/_blazor"),
+                b => b.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
 
             // Security headers
             app.Use(async (context, next) =>
@@ -589,12 +595,13 @@ namespace FacilityApp
                 }
             });
 
-            // MapRazorComponents first — serves embedded _framework/** files
-            // (blazor.web.js lives in the runtime, not in wwwroot in .NET 10)
+            // MapStaticAssets must come before MapRazorComponents so the static web
+            // assets manifest (which resolves @Assets fingerprinted paths) is registered
+            // before any Razor page renders.
+            app.MapStaticAssets();
+
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
-
-            app.MapStaticAssets();
 
             app.Run();
         }

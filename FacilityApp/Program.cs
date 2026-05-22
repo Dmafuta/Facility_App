@@ -266,7 +266,7 @@ namespace FacilityApp
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
             };
             forwardedOptions.KnownProxies.Clear();
-            forwardedOptions.KnownNetworks.Clear();
+            forwardedOptions.KnownIPNetworks.Clear();
             app.UseForwardedHeaders(forwardedOptions);
 
             if (!app.Environment.IsDevelopment())

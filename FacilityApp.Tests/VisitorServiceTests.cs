@@ -44,7 +44,9 @@ public class VisitorServiceTests : IDisposable
         clientsMock.Setup(c => c.Group(It.IsAny<string>())).Returns(clientProxyMock.Object);
         _hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
 
-        _sut = new VisitorService(_db, _tenantCtx, _emailMock.Object, _auditMock.Object, _hubMock.Object);
+        var blacklistMock = new Mock<IBlacklistService>();
+
+        _sut = new VisitorService(_db, _tenantCtx, _emailMock.Object, _auditMock.Object, _hubMock.Object, blacklistMock.Object);
     }
 
     // ── WalkIn ──────────────────────────────────────────────────────────

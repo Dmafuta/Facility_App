@@ -341,7 +341,7 @@
                 </NavLink>
             </div>
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/visitors/preregister")">
+                <NavLink class="nav-link" href="@($"{TenantCtx.RouteBase}/resident/preregister")">
                     <i class="bi bi-person-plus me-2"></i>Pre-register Visit
                 </NavLink>
             </div>
@@ -432,7 +432,7 @@
         var path = new Uri(Nav.Uri).AbsolutePath.ToLowerInvariant();
         _openGroup = path switch
         {
-            var p when p.Contains("/check-in")   || p.Contains("/visitors")  || p.Contains("/access/")        => "access",
+            var p when p.Contains("/checkin")     || p.Contains("/visitors")  || p.Contains("/access/")        => "access",
             var p when p.Contains("/parking")    || p.Contains("/parcels")   || p.Contains("/maintenance")    => "operations",
             var p when p.Contains("/admin/users") || p.Contains("/admin/units") || p.Contains("/admin/unit-requests") => "residents",
             var p when p.Contains("/admin/announcements") || p.Contains("/admin/documents")                   => "communications",

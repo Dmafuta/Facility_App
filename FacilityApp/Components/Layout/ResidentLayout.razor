@@ -80,7 +80,21 @@
     <main class="resident-content">
         <div class="container py-4">
             <CascadingAuthenticationState>
-                @Body
+                <ErrorBoundary>
+                    <ChildContent>@Body</ChildContent>
+                    <ErrorContent>
+                        <div class="alert alert-danger d-flex align-items-start gap-3" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill fs-4 flex-shrink-0 mt-1"></i>
+                            <div>
+                                <h6 class="mb-1">Something went wrong on this page</h6>
+                                <p class="mb-2 small">An unexpected error occurred. Please try reloading.</p>
+                                <a href="@Nav.Uri" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Reload page
+                                </a>
+                            </div>
+                        </div>
+                    </ErrorContent>
+                </ErrorBoundary>
             </CascadingAuthenticationState>
         </div>
     </main>

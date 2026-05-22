@@ -16,17 +16,12 @@
 
 <PageTitle>My Dashboard — @TenantCtx.TenantName</PageTitle>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h4 class="mb-0 fw-bold"><i class="bi bi-speedometer2 me-2 text-primary"></i>My Dashboard</h4>
         <small class="text-muted">Welcome back, @_userName</small>
     </div>
     <AuthorizeView Policy="CanPreRegisterVisits">
-        <Authorized>
-            <a href="@(TenantCtx.RouteBase)/resident/preregister" class="btn btn-primary">
-                <i class="bi bi-person-plus me-1"></i>Pre-register Visitor
-            </a>
-        </Authorized>
         <NotAuthorized>
             @if (_pendingRequest is not null)
             {
@@ -42,6 +37,31 @@
             }
         </NotAuthorized>
     </AuthorizeView>
+</div>
+
+<!-- Section navigation tabs -->
+<div class="resident-tabs mb-4">
+    <a href="@(TenantCtx.RouteBase)/resident/preregister" class="resident-tab">
+        <i class="bi bi-person-plus me-2"></i>Pre-register
+    </a>
+    <a href="@(TenantCtx.RouteBase)/resident/visits" class="resident-tab">
+        <i class="bi bi-calendar-check me-2"></i>My Visits
+    </a>
+    <a href="@(TenantCtx.RouteBase)/resident/maintenance" class="resident-tab">
+        <i class="bi bi-tools me-2"></i>Maintenance
+    </a>
+    <a href="@(TenantCtx.RouteBase)/resident/vehicles" class="resident-tab">
+        <i class="bi bi-car-front me-2"></i>My Vehicles
+    </a>
+    <a href="@(TenantCtx.RouteBase)/resident/parcels" class="resident-tab">
+        <i class="bi bi-box-seam me-2"></i>My Parcels
+    </a>
+    <a href="@(TenantCtx.RouteBase)/resident/documents" class="resident-tab">
+        <i class="bi bi-folder2-open me-2"></i>Documents
+    </a>
+    <a href="@(TenantCtx.RouteBase)/resident/profile" class="resident-tab">
+        <i class="bi bi-person-circle me-2"></i>My Profile
+    </a>
 </div>
 
 @if (_loading)
@@ -163,98 +183,6 @@ else
         </div>
     </div>
 
-    <!-- Quick actions -->
-    <div class="row g-3">
-        <div class="col-md-4">
-            <a href="@(TenantCtx.RouteBase)/resident/preregister" class="card border-0 shadow-sm text-decoration-none h-100 quick-action-card">
-                <div class="card-body d-flex align-items-center gap-3 py-3">
-                    <div class="quick-icon bg-primary bg-opacity-10 text-primary">
-                        <i class="bi bi-person-plus"></i>
-                    </div>
-                    <div>
-                        <div class="fw-semibold text-dark">Pre-register Visitor</div>
-                        <small class="text-muted">Schedule a visit in advance</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-4">
-            <a href="@(TenantCtx.RouteBase)/resident/visits" class="card border-0 shadow-sm text-decoration-none h-100 quick-action-card">
-                <div class="card-body d-flex align-items-center gap-3 py-3">
-                    <div class="quick-icon bg-success bg-opacity-10 text-success">
-                        <i class="bi bi-calendar-check"></i>
-                    </div>
-                    <div>
-                        <div class="fw-semibold text-dark">My Visits</div>
-                        <small class="text-muted">View your visit history</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-4">
-            <a href="@(TenantCtx.RouteBase)/resident/maintenance" class="card border-0 shadow-sm text-decoration-none h-100 quick-action-card">
-                <div class="card-body d-flex align-items-center gap-3 py-3">
-                    <div class="quick-icon bg-warning bg-opacity-10 text-warning">
-                        <i class="bi bi-tools"></i>
-                    </div>
-                    <div>
-                        <div class="fw-semibold text-dark">Maintenance</div>
-                        <small class="text-muted">Submit or track repair requests</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-4">
-            <a href="@(TenantCtx.RouteBase)/resident/vehicles" class="card border-0 shadow-sm text-decoration-none h-100 quick-action-card">
-                <div class="card-body d-flex align-items-center gap-3 py-3">
-                    <div class="quick-icon bg-secondary bg-opacity-10 text-secondary">
-                        <i class="bi bi-car-front"></i>
-                    </div>
-                    <div>
-                        <div class="fw-semibold text-dark">My Vehicles</div>
-                        <small class="text-muted">Manage vehicles &amp; access tags</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-4">
-            <a href="@(TenantCtx.RouteBase)/resident/parcels" class="card border-0 shadow-sm text-decoration-none h-100 quick-action-card">
-                <div class="card-body d-flex align-items-center gap-3 py-3">
-                    <div class="quick-icon bg-primary bg-opacity-10 text-primary">
-                        <i class="bi bi-box-seam"></i>
-                    </div>
-                    <div>
-                        <div class="fw-semibold text-dark">My Parcels</div>
-                        <small class="text-muted">Track deliveries &amp; collections</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-md-4">
-            <a href="@(TenantCtx.RouteBase)/resident/profile" class="card border-0 shadow-sm text-decoration-none h-100 quick-action-card">
-                <div class="card-body d-flex align-items-center gap-3 py-3">
-                    <div class="quick-icon bg-info bg-opacity-10 text-info">
-                        <i class="bi bi-house-door"></i>
-                    </div>
-                    <div>
-                        <div class="fw-semibold text-dark">
-                            @if (_myUnit is not null)
-                            {
-                                @(_myUnit.Block is not null
-                                    ? $"Unit {_myUnit.Block}-{_myUnit.UnitNumber}"
-                                    : $"Unit {_myUnit.UnitNumber}")
-                            }
-                            else
-                            {
-                                <span>My Profile</span>
-                            }
-                        </div>
-                        <small class="text-muted">@(TenantCtx.TenantName) · View profile</small>
-                    </div>
-                </div>
-            </a>
-        </div>
-    </div>
 }
 
 @code {

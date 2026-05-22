@@ -1,7 +1,7 @@
 @page "/{TenantSlug}/resident/vehicles"
 @page "/resident/vehicles"
 @layout ResidentLayout
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@rendermode InteractiveServer
 @attribute [Authorize(Policy = "CanViewOwnHistory")]
 @inject IParkingService ParkingSvc
 @inject ITenantService TenantSvc

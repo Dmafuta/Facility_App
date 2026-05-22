@@ -15,7 +15,12 @@
 # Replace / add domains below as needed.
 
 greatwallgardens.estate {
-    reverse_proxy app:8080
+    reverse_proxy app:8080 {
+        # Forward the original public host so ASP.NET Core's SignalR origin
+        # validation sees greatwallgardens.estate instead of app:8080
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+    }
     encode gzip
     header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 }

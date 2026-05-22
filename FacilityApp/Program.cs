@@ -256,12 +256,18 @@ namespace FacilityApp
             // Seed Identity roles on startup
             await SeedRolesAsync(app);
 
-            // Trust the reverse-proxy (Caddy) forwarded headers so the app
-            // knows its public scheme (https) and host (greatwallgardens.estate)
-            app.UseForwardedHeaders(new ForwardedHeadersOptions
+            // Trust Caddy's forwarded headers regardless of proxy IP.
+            // By default ASP.NET Core only trusts loopback (127.0.0.1); Caddy runs
+            // on a Docker internal IP so we must clear the allow-list to accept any proxy.
+            // Without this, the app sees Host:app:8080 instead of Host:greatwallgardens.estate,
+            // causing SignalR origin validation to reject /_blazor → circuit never connects.
+            var forwardedOptions = new ForwardedHeadersOptions
             {
                 ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
-            });
+            };
+            forwardedOptions.KnownProxies.Clear();
+            forwardedOptions.KnownNetworks.Clear();
+            app.UseForwardedHeaders(forwardedOptions);
 
             if (!app.Environment.IsDevelopment())
             {

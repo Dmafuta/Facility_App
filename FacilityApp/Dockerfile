@@ -1,5 +1,5 @@
 # ── Build stage ──────────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.203 AS build
 WORKDIR /src
 
 COPY FacilityApp.csproj ./
@@ -34,7 +34,7 @@ RUN mkdir -p /app/publish/wwwroot/_framework && \
     fi
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.7 AS runtime
 WORKDIR /app
 
 # Create non-root user (Debian-based image)

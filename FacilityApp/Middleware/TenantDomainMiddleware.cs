@@ -14,10 +14,16 @@ public class TenantDomainMiddleware(RequestDelegate next)
         if (!tenantCtx.IsResolved)
         {
             var host = context.Request.Host.Host.ToLower();
+            var path = context.Request.Path.Value ?? "";
 
-            // Skip local development hosts
-            bool isLocal = host == "localhost" || host == "127.0.0.1" || host.StartsWith("172.16.");
-            if (!isLocal)
+            // Skip local development hosts and platform/superadmin routes —
+            // superadmin pages must never run under a tenant context, regardless
+            // of which domain is used to reach them.
+            bool isLocal       = host == "localhost" || host == "127.0.0.1" || host.StartsWith("172.16.");
+            bool isSuperAdmin  = path.StartsWith("/superadmin", StringComparison.OrdinalIgnoreCase)
+                              || path.StartsWith("/platform",   StringComparison.OrdinalIgnoreCase);
+
+            if (!isLocal && !isSuperAdmin)
             {
                 var tenant = await tenantSvc.ResolveByDomainAsync(host);
                 if (tenant is not null)

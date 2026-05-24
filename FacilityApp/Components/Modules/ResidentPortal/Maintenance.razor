@@ -176,29 +176,38 @@ else if (_requests.Count > 0)
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
+            }
+
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            _userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+            if (!string.IsNullOrEmpty(_userId))
+            {
+                var units = await UnitSvc.GetForUserAsync(_userId);
+                _unitId = units.FirstOrDefault().Unit?.Id;
+                _requests = await MaintenanceSvc.GetForResidentAsync(_userId);
             }
         }
-
-        var auth = await AuthState.GetAuthenticationStateAsync();
-        _userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
-
-        if (!string.IsNullOrEmpty(_userId))
+        catch (Exception)
         {
-            var units = await UnitSvc.GetForUserAsync(_userId);
-            _unitId = units.FirstOrDefault().Unit?.Id;
-            _requests = await MaintenanceSvc.GetForResidentAsync(_userId);
+            ShowToast("Failed to load maintenance requests. Please refresh.", "danger");
         }
-
-        _loading = false;
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task SubmitAsync()

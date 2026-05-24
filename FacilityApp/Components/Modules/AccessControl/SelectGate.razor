@@ -87,19 +87,29 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+            _entrances = await EntranceSvc.GetActiveAsync();
         }
-        _entrances = await EntranceSvc.GetActiveAsync();
-        _loading   = false;
+        catch (Exception)
+        {
+            _error = "Failed to load gates. Please refresh the page.";
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task SelectAsync(Guid entranceId, string entranceName)

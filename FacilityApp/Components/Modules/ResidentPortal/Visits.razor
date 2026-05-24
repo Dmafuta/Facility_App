@@ -230,25 +230,34 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            _userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+            if (!string.IsNullOrEmpty(_userId))
+                _all = await VisitorSvc.GetVisitsForHostAsync(_userId);
         }
-
-        var auth = await AuthState.GetAuthenticationStateAsync();
-        _userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
-
-        if (!string.IsNullOrEmpty(_userId))
-            _all = await VisitorSvc.GetVisitsForHostAsync(_userId);
-
-        _loading = false;
+        catch (Exception)
+        {
+            // non-fatal — page shows with empty list
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private void SetTab(string tab) { _activeTab = tab; _page = 1; }
@@ -268,9 +277,19 @@
     private async Task CancelAsync(Guid visitId)
     {
         _busy = true;
-        await VisitorSvc.CancelAsync(visitId);
-        _all  = await VisitorSvc.GetVisitsForHostAsync(_userId);
-        _busy = false;
+        try
+        {
+            await VisitorSvc.CancelAsync(visitId);
+            _all = await VisitorSvc.GetVisitsForHostAsync(_userId);
+        }
+        catch (Exception)
+        {
+            // cancel failed — leave list unchanged
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private static string StatusBadge(VisitStatus s) => s switch

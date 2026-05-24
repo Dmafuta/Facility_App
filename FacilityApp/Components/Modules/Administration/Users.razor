@@ -15,6 +15,12 @@
         <div class="spinner-border text-primary" role="status"></div>
     </div>
 }
+else if (_loadError is not null)
+{
+    <div class="alert alert-danger mt-4">
+        <i class="bi bi-exclamation-triangle me-2"></i>@_loadError
+    </div>
+}
 else
 {
     <div class="px-2 py-3">
@@ -297,6 +303,7 @@ else
     [Parameter] public string TenantSlug { get; set; } = string.Empty;
 
     private bool loading = true;
+    private string? _loadError;
     private bool showStaffForm;
     private bool saving;
     private string? formSuccess;
@@ -315,19 +322,29 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantService.ResolveBySlugAsync(TenantSlug);
-            if (tenant is null) { loading = false; return; }
+            if (!TenantCtx.IsResolved)
+            {
+                var tenant = await TenantService.ResolveBySlugAsync(TenantSlug);
+                if (tenant is null) { loading = false; return; }
 
-            TenantCtx.TenantId   = tenant.Id;
-            TenantCtx.TenantSlug = tenant.Slug;
-            TenantCtx.TenantName = tenant.Name;
-            TenantCtx.IsResolved = true;
+                TenantCtx.TenantId   = tenant.Id;
+                TenantCtx.TenantSlug = tenant.Slug;
+                TenantCtx.TenantName = tenant.Name;
+                TenantCtx.IsResolved = true;
+            }
+
+            await LoadUsersAsync();
         }
-
-        await LoadUsersAsync();
-        loading = false;
+        catch (Exception)
+        {
+            _loadError = "Failed to load users. Please refresh the page.";
+        }
+        finally
+        {
+            loading = false;
+        }
     }
 
     private async Task LoadUsersAsync()
@@ -393,16 +410,23 @@ else
     private async Task ToggleRole(UserRow row, string role, bool add)
     {
         editMessage = null;
-        var user = await UserManager.FindByIdAsync(row.Id);
-        if (user is null) return;
+        try
+        {
+            var user = await UserManager.FindByIdAsync(row.Id);
+            if (user is null) return;
 
-        if (add)
-            await UserManager.AddToRoleAsync(user, role);
-        else
-            await UserManager.RemoveFromRoleAsync(user, role);
+            if (add)
+                await UserManager.AddToRoleAsync(user, role);
+            else
+                await UserManager.RemoveFromRoleAsync(user, role);
 
-        row.Roles = (await UserManager.GetRolesAsync(user)).ToList();
-        editMessage = $"Role '{role}' {(add ? "granted" : "removed")}.";
+            row.Roles = (await UserManager.GetRolesAsync(user)).ToList();
+            editMessage = $"Role '{role}' {(add ? "granted" : "removed")}.";
+        }
+        catch (Exception)
+        {
+            editMessage = "Failed to update role. Please try again.";
+        }
     }
 
     private IEnumerable<UserRow> TabUsers() => activeTab switch

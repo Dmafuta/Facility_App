@@ -262,25 +262,35 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            _staffUserId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+            _units        = await UnitSvc.GetAllAsync();
+            _pendingCount = await ParcelSvc.GetPendingCountAsync();
+            await LoadParcelsAsync();
         }
-
-        var auth = await AuthState.GetAuthenticationStateAsync();
-        _staffUserId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
-
-        _units        = await UnitSvc.GetAllAsync();
-        _pendingCount = await ParcelSvc.GetPendingCountAsync();
-        await LoadParcelsAsync();
-        _loading = false;
+        catch (Exception)
+        {
+            ShowToast("Failed to load parcels. Please refresh.", "danger");
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task LoadParcelsAsync()

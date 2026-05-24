@@ -162,26 +162,49 @@ else
 
     private async Task LoadAsync()
     {
-        _tenants = await Db.Tenants
-            .IgnoreQueryFilters()
-            .Where(t => !t.IsSystem)
-            .OrderBy(t => t.Name)
-            .ToListAsync();
+        try
+        {
+            _tenants = await Db.Tenants
+                .IgnoreQueryFilters()
+                .Where(t => !t.IsSystem)
+                .OrderBy(t => t.Name)
+                .ToListAsync();
+        }
+        catch (Exception)
+        {
+            _tenants = [];
+            ShowToast("Failed to load tenants. Please refresh.", "danger");
+        }
     }
 
     private async Task TogglePlanAsync(Tenant t)
     {
-        t.Plan = t.Plan == TenantPlan.Professional ? TenantPlan.Starter : TenantPlan.Professional;
-        await Db.SaveChangesAsync();
-        var action = t.Plan == TenantPlan.Professional ? "upgraded to Professional" : "downgraded to Starter";
-        ShowToast($"{t.Name} {action}.", t.Plan == TenantPlan.Professional ? "warning" : "secondary");
+        try
+        {
+            t.Plan = t.Plan == TenantPlan.Professional ? TenantPlan.Starter : TenantPlan.Professional;
+            await Db.SaveChangesAsync();
+            var action = t.Plan == TenantPlan.Professional ? "upgraded to Professional" : "downgraded to Starter";
+            ShowToast($"{t.Name} {action}.", t.Plan == TenantPlan.Professional ? "warning" : "secondary");
+        }
+        catch (Exception)
+        {
+            ShowToast("Failed to update plan. Please try again.", "danger");
+        }
     }
 
     private async Task ToggleActiveAsync(Tenant t)
     {
-        t.IsActive = !t.IsActive;
-        await Db.SaveChangesAsync();
-        ShowToast($"{t.Name} {(t.IsActive ? "activated" : "deactivated")}.", t.IsActive ? "success" : "warning");
+        try
+        {
+            t.IsActive = !t.IsActive;
+            await Db.SaveChangesAsync();
+            ShowToast($"{t.Name} {(t.IsActive ? "activated" : "deactivated")}.", t.IsActive ? "success" : "warning");
+        }
+        catch (Exception)
+        {
+            t.IsActive = !t.IsActive; // revert
+            ShowToast("Failed to update tenant status. Please try again.", "danger");
+        }
     }
 
     private void ShowToast(string message, string type)

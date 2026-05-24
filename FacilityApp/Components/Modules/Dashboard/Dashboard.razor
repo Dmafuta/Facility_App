@@ -29,6 +29,12 @@ else if (tenantNotFound)
         <p class="mb-0">No active facility found for <code>@TenantSlug</code>. Please check the URL.</p>
     </div>
 }
+else if (_loadError is not null)
+{
+    <div class="alert alert-danger mt-4">
+        <i class="bi bi-exclamation-triangle me-2"></i>@_loadError
+    </div>
+}
 else
 {
     <div class="dashboard-wrapper">
@@ -446,6 +452,7 @@ else
     private bool loading = true;
     private bool tenantNotFound;
     private bool refreshing;
+    private string? _loadError;
     private DashboardStats? stats;
     private DateTime lastUpdated;
     private PeriodicTimer? _autoRefreshTimer;
@@ -460,57 +467,65 @@ else
     {
         loading = true;
         tenantNotFound = false;
-
-        // Resolve auth state first — needed for both the ownership check and the staff redirect
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user      = authState.User;
-
-        // Re-resolve when the context is missing OR the slug changed during soft navigation
-        if (!TenantCtx.IsResolved || (!TenantCtx.IsCustomDomain && TenantCtx.TenantSlug != TenantSlug))
+        _loadError = null;
+        try
         {
-            var tenant = await TenantService.ResolveBySlugAsync(TenantSlug);
-            if (tenant == null)
+            // Resolve auth state first — needed for both the ownership check and the staff redirect
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user      = authState.User;
+
+            // Re-resolve when the context is missing OR the slug changed during soft navigation
+            if (!TenantCtx.IsResolved || (!TenantCtx.IsCustomDomain && TenantCtx.TenantSlug != TenantSlug))
             {
-                tenantNotFound = true;
-                loading = false;
+                var tenant = await TenantService.ResolveBySlugAsync(TenantSlug);
+                if (tenant == null)
+                {
+                    tenantNotFound = true;
+                    return;
+                }
+
+                // Security: verify the authenticated user belongs to this tenant.
+                // SuperAdmin is exempt (cross-tenant by design).
+                if (!user.IsInRole(Program.RoleSuperAdmin))
+                {
+                    var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    if (userId is not null)
+                    {
+                        var appUser = await UserMgr.FindByIdAsync(userId);
+                        if (appUser is null || appUser.TenantId != tenant.Id)
+                        {
+                            Nav.NavigateTo("/access-denied", replace: true);
+                            return;
+                        }
+                    }
+                }
+
+                TenantCtx.TenantId   = tenant.Id;
+                TenantCtx.TenantSlug = tenant.Slug;
+                TenantCtx.TenantName = tenant.Name;
+                TenantCtx.IsResolved = true;
+            }
+
+            // Redirect residents (non-staff) to the resident portal
+            bool isStaff = user.IsInRole(Program.RoleAdmin)  || user.IsInRole(Program.RoleManager) ||
+                           user.IsInRole(Program.RoleReceptionist) || user.IsInRole(Program.RoleSecurity);
+            if (!isStaff)
+            {
+                Nav.NavigateTo($"{TenantCtx.RouteBase}/resident", replace: true);
                 return;
             }
 
-            // Security: verify the authenticated user belongs to this tenant.
-            // SuperAdmin is exempt (cross-tenant by design).
-            if (!user.IsInRole(Program.RoleSuperAdmin))
-            {
-                var userId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                if (userId is not null)
-                {
-                    var appUser = await UserMgr.FindByIdAsync(userId);
-                    if (appUser is null || appUser.TenantId != tenant.Id)
-                    {
-                        Nav.NavigateTo("/access-denied", replace: true);
-                        loading = false;
-                        return;
-                    }
-                }
-            }
-
-            TenantCtx.TenantId   = tenant.Id;
-            TenantCtx.TenantSlug = tenant.Slug;
-            TenantCtx.TenantName = tenant.Name;
-            TenantCtx.IsResolved = true;
+            stats = await DashboardService.GetStatsAsync();
+            lastUpdated = DateTime.Now;
         }
-
-        // Redirect residents (non-staff) to the resident portal
-        bool isStaff = user.IsInRole(Program.RoleAdmin)  || user.IsInRole(Program.RoleManager) ||
-                       user.IsInRole(Program.RoleReceptionist) || user.IsInRole(Program.RoleSecurity);
-        if (!isStaff)
+        catch (Exception)
         {
-            Nav.NavigateTo($"{TenantCtx.RouteBase}/resident", replace: true);
-            return;
+            _loadError = "Failed to load dashboard data. Please refresh the page.";
         }
-
-        stats = await DashboardService.GetStatsAsync();
-        lastUpdated = DateTime.Now;
-        loading = false;
+        finally
+        {
+            loading = false;
+        }
     }
 
     private bool _chartRendered;
@@ -554,10 +569,20 @@ else
     private async Task RefreshAsync()
     {
         refreshing = true;
-        stats = await DashboardService.GetStatsAsync();
-        lastUpdated = DateTime.Now;
-        refreshing = false;
-        await RenderChartAsync();
+        try
+        {
+            stats = await DashboardService.GetStatsAsync();
+            lastUpdated = DateTime.Now;
+            await RenderChartAsync();
+        }
+        catch (Exception)
+        {
+            // silently ignore refresh errors — next tick will retry
+        }
+        finally
+        {
+            refreshing = false;
+        }
     }
 
     private async Task RenderChartAsync()

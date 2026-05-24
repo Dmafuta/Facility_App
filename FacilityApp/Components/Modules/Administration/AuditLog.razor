@@ -141,25 +141,39 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+            await LoadAsync();
         }
-        await LoadAsync();
+        catch (Exception)
+        {
+            _logs = [];
+        }
     }
 
     private async Task LoadAsync()
     {
-        var result = await AuditSvc.GetLogsAsync(_search, _page, PageSize);
-        _logs  = result.Items;
-        _total = result.Total;
+        try
+        {
+            var result = await AuditSvc.GetLogsAsync(_search, _page, PageSize);
+            _logs  = result.Items;
+            _total = result.Total;
+        }
+        catch (Exception)
+        {
+            _logs = [];
+        }
     }
 
     private async Task GoToPageAsync(int page)

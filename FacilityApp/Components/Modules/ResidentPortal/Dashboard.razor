@@ -200,59 +200,79 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            var user  = auth.User;
+
+            // Staff users land on the staff dashboard, not the resident portal
+            bool isStaff = user.IsInRole(Program.RoleAdmin) || user.IsInRole(Program.RoleManager) ||
+                           user.IsInRole(Program.RoleReceptionist) || user.IsInRole(Program.RoleSecurity);
+            if (isStaff)
+            {
+                Nav.NavigateTo($"{TenantCtx.RouteBase}/dashboard", replace: true);
+                return;
+            }
+
+            _userName = user.Identity?.Name ?? "";
+            _userId   = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+            if (!string.IsNullOrEmpty(_userId))
+            {
+                _visits   = await VisitorSvc.GetVisitsForHostAsync(_userId);
+                _upcoming = _visits
+                    .Where(v => v.Status == VisitStatus.Scheduled && v.ScheduledAt >= DateTime.UtcNow)
+                    .OrderBy(v => v.ScheduledAt)
+                    .ToList();
+                var units = await UnitSvc.GetForUserAsync(_userId);
+                _myUnit = units.FirstOrDefault().Unit;
+                if (_myUnit is null)
+                    _pendingRequest = await RequestSvc.GetForResidentAsync(_userId);
+            }
+            _announcements = await AnnouncementSvc.GetActiveAsync();
         }
-
-        var auth = await AuthState.GetAuthenticationStateAsync();
-        var user  = auth.User;
-
-        // Staff users land on the staff dashboard, not the resident portal
-        bool isStaff = user.IsInRole(Program.RoleAdmin) || user.IsInRole(Program.RoleManager) ||
-                       user.IsInRole(Program.RoleReceptionist) || user.IsInRole(Program.RoleSecurity);
-        if (isStaff)
+        catch (Exception)
         {
-            Nav.NavigateTo($"{TenantCtx.RouteBase}/dashboard", replace: true);
-            return;
+            // non-fatal: show partial content; _loading=false will reveal the page
         }
-
-        _userName = user.Identity?.Name ?? "";
-        _userId   = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
-
-        if (!string.IsNullOrEmpty(_userId))
+        finally
         {
-            _visits   = await VisitorSvc.GetVisitsForHostAsync(_userId);
-            _upcoming = _visits
-                .Where(v => v.Status == VisitStatus.Scheduled && v.ScheduledAt >= DateTime.UtcNow)
-                .OrderBy(v => v.ScheduledAt)
-                .ToList();
-            var units = await UnitSvc.GetForUserAsync(_userId);
-            _myUnit = units.FirstOrDefault().Unit;
-            if (_myUnit is null)
-                _pendingRequest = await RequestSvc.GetForResidentAsync(_userId);
+            _loading = false;
         }
-        _announcements = await AnnouncementSvc.GetActiveAsync();
-        _loading = false;
     }
 
     private async Task CancelAsync(Guid visitId)
     {
         _busy = true;
-        await VisitorSvc.CancelAsync(visitId);
-        _visits   = await VisitorSvc.GetVisitsForHostAsync(_userId);
-        _upcoming = _visits
-            .Where(v => v.Status == VisitStatus.Scheduled && v.ScheduledAt >= DateTime.UtcNow)
-            .OrderBy(v => v.ScheduledAt)
-            .ToList();
-        _busy = false;
+        try
+        {
+            await VisitorSvc.CancelAsync(visitId);
+            _visits   = await VisitorSvc.GetVisitsForHostAsync(_userId);
+            _upcoming = _visits
+                .Where(v => v.Status == VisitStatus.Scheduled && v.ScheduledAt >= DateTime.UtcNow)
+                .OrderBy(v => v.ScheduledAt)
+                .ToList();
+        }
+        catch (Exception)
+        {
+            // cancel failed silently — page state remains unchanged
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private static string AnnouncementAlertClass(AnnouncementCategory c) => c switch

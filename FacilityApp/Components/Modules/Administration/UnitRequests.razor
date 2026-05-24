@@ -153,29 +153,47 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            _reviewerId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+            await LoadAsync();
         }
-
-        var auth = await AuthState.GetAuthenticationStateAsync();
-        _reviewerId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
-
-        await LoadAsync();
+        catch (Exception)
+        {
+            ShowToast("Failed to load unit requests. Please refresh.", "danger");
+            _loading = false;
+        }
     }
 
     private async Task LoadAsync()
     {
         _loading = true;
-        _requests = await RequestSvc.GetPendingAsync();
-        _loading = false;
+        try
+        {
+            _requests = await RequestSvc.GetPendingAsync();
+        }
+        catch (Exception)
+        {
+            ShowToast("Failed to load unit requests. Please refresh.", "danger");
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task ApproveAsync(Guid requestId)

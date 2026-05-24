@@ -18,7 +18,13 @@
     </button>
 </div>
 
-@if (_facilities is null)
+@if (_loadError is not null)
+{
+    <div class="alert alert-danger mt-4">
+        <i class="bi bi-exclamation-triangle me-2"></i>@_loadError
+    </div>
+}
+else if (_facilities is null)
 {
     <div class="text-center py-5 text-muted">
         <div class="spinner-border spinner-border-sm me-2"></div>Loading…
@@ -199,24 +205,32 @@ else
     private bool  _showForm;
     private bool  _saving;
     private string? _error;
+    private string? _loadError;
     private Facility? _editing;
     private Facility? _deleteTarget;
     private FacilityForm _form = new();
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+            await LoadAsync();
         }
-        await LoadAsync();
+        catch (Exception)
+        {
+            _loadError = "Failed to load facilities. Please refresh the page.";
+        }
     }
 
     private async Task LoadAsync() => _facilities = await FacilitySvc.GetAllAsync();
@@ -268,8 +282,15 @@ else
 
     private async Task ToggleAsync(Facility f)
     {
-        await FacilitySvc.ToggleActiveAsync(f.Id);
-        await LoadAsync();
+        try
+        {
+            await FacilitySvc.ToggleActiveAsync(f.Id);
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            _error = "Failed to update facility status. Please try again.";
+        }
     }
 
     private void CloseModals() { _showForm = false; _deleteTarget = null; }

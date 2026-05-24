@@ -189,23 +189,33 @@ else if (_docs.Count > 0)
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+
+            var auth = await AuthState.GetAuthenticationStateAsync();
+            _userId  = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+            _docs = await DocumentSvc.GetAllAsync();
         }
-
-        var auth = await AuthState.GetAuthenticationStateAsync();
-        _userId  = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
-
-        _docs    = await DocumentSvc.GetAllAsync();
-        _loading = false;
+        catch (Exception)
+        {
+            ShowToast("Failed to load documents. Please refresh.", "danger");
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private void OnFileSelected(InputFileChangeEventArgs e) => _file = e.File;
@@ -233,15 +243,29 @@ else if (_docs.Count > 0)
 
     private async Task ToggleAsync(Guid id)
     {
-        await DocumentSvc.ToggleActiveAsync(id);
-        _docs = await DocumentSvc.GetAllAsync();
+        try
+        {
+            await DocumentSvc.ToggleActiveAsync(id);
+            _docs = await DocumentSvc.GetAllAsync();
+        }
+        catch (Exception)
+        {
+            ShowToast("Failed to update document. Please try again.", "danger");
+        }
     }
 
     private async Task DeleteAsync(Guid id)
     {
-        await DocumentSvc.DeleteAsync(id);
-        _docs = await DocumentSvc.GetAllAsync();
-        ShowToast("Document deleted.", "success");
+        try
+        {
+            await DocumentSvc.DeleteAsync(id);
+            _docs = await DocumentSvc.GetAllAsync();
+            ShowToast("Document deleted.", "success");
+        }
+        catch (Exception)
+        {
+            ShowToast("Failed to delete document. Please try again.", "danger");
+        }
     }
 
     private void CancelForm()

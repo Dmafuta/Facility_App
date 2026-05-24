@@ -20,7 +20,13 @@
     </button>
 </div>
 
-@if (_units is null)
+@if (_loadError is not null)
+{
+    <div class="alert alert-danger mt-4">
+        <i class="bi bi-exclamation-triangle me-2"></i>@_loadError
+    </div>
+}
+else if (_units is null)
 {
     <div class="text-center py-5 text-muted">
         <div class="spinner-border spinner-border-sm me-2"></div> Loading units…
@@ -427,6 +433,7 @@ else
     // ── State ─────────────────────────────────────────────────────────────
     private List<UnitDetails>? _units;
     private string _search = "";
+    private string? _loadError;
 
     private bool _showUnitModal;
     private bool _showAssignModal;
@@ -450,19 +457,26 @@ else
     // ── Lifecycle ─────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
-        }
 
-        await LoadUnitsAsync();
+            await LoadUnitsAsync();
+        }
+        catch (Exception)
+        {
+            _loadError = "Failed to load units. Please refresh the page.";
+        }
     }
 
     private async Task LoadUnitsAsync()
@@ -548,8 +562,16 @@ else
         _newOwnerForm     = new();
         _showAssignModal  = true;
 
-        var linkType = mode == AssignMode.Owner ? UnitLinkType.Owner : UnitLinkType.Occupant;
-        _assignableUsers = await UnitSvc.GetAssignableUsersAsync(linkType);
+        try
+        {
+            var linkType = mode == AssignMode.Owner ? UnitLinkType.Owner : UnitLinkType.Occupant;
+            _assignableUsers = await UnitSvc.GetAssignableUsersAsync(linkType);
+        }
+        catch (Exception)
+        {
+            _assignError = "Failed to load users. Please close and try again.";
+            _assignableUsers = [];
+        }
     }
 
     private async Task CreateOwnerAndAssignAsync()
@@ -635,14 +657,28 @@ else
     // ── Remove ────────────────────────────────────────────────────────────
     private async Task RemoveOwnerAsync(UnitDetails d)
     {
-        await UnitSvc.RemoveOwnerAsync(d.Unit.Id);
-        await LoadUnitsAsync();
+        try
+        {
+            await UnitSvc.RemoveOwnerAsync(d.Unit.Id);
+            await LoadUnitsAsync();
+        }
+        catch (Exception)
+        {
+            _unitError = "Failed to remove owner. Please try again.";
+        }
     }
 
     private async Task RemoveOccupantAsync(UnitDetails d)
     {
-        await UnitSvc.RemoveOccupantAsync(d.Unit.Id);
-        await LoadUnitsAsync();
+        try
+        {
+            await UnitSvc.RemoveOccupantAsync(d.Unit.Id);
+            await LoadUnitsAsync();
+        }
+        catch (Exception)
+        {
+            _unitError = "Failed to remove occupant. Please try again.";
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

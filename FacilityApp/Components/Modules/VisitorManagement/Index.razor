@@ -312,27 +312,45 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+            await LoadAsync();
         }
-        await LoadAsync();
+        catch (Exception)
+        {
+            ShowToast("Failed to load visitors. Please refresh.", "danger");
+            _loading = false;
+        }
     }
 
     private async Task LoadAsync()
     {
         _loading = true;
-        var result = await VisitorSvc.GetVisitsAsync(_activeTab, _search, _page, PageSize);
-        _visits = result.Items;
-        _total  = result.Total;
-        _loading = false;
+        try
+        {
+            var result = await VisitorSvc.GetVisitsAsync(_activeTab, _search, _page, PageSize);
+            _visits = result.Items;
+            _total  = result.Total;
+        }
+        catch (Exception)
+        {
+            ShowToast("Failed to load visitors. Please refresh.", "danger");
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task SetTabAsync(string tab)
@@ -375,22 +393,42 @@
     private async Task CheckInAsync(Guid visitId)
     {
         _busy = true;
-        await VisitorSvc.CheckInAsync(visitId, GateCtx.IsSelected ? GateCtx.EntranceId : null);
-        await LoadAsync();
-        _busy = false;
+        try
+        {
+            await VisitorSvc.CheckInAsync(visitId, GateCtx.IsSelected ? GateCtx.EntranceId : null);
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            ShowToast("Failed to check in visitor. Please try again.", "danger");
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task CheckOutAsync(Guid visitId)
     {
         _busy = true;
         var visit = _visits?.FirstOrDefault(v => v.Id == visitId);
-        await VisitorSvc.CheckOutAsync(visitId, GateCtx.IsSelected ? GateCtx.EntranceId : null);
-        await LoadAsync();
-        _busy = false;
-        var name = visit?.Visitor.FullName ?? "Visitor";
-        ShowToast(GateCtx.IsSelected
-            ? $"{name} checked out at {GateCtx.EntranceName}."
-            : $"{name} checked out.");
+        try
+        {
+            await VisitorSvc.CheckOutAsync(visitId, GateCtx.IsSelected ? GateCtx.EntranceId : null);
+            await LoadAsync();
+            var name = visit?.Visitor.FullName ?? "Visitor";
+            ShowToast(GateCtx.IsSelected
+                ? $"{name} checked out at {GateCtx.EntranceName}."
+                : $"{name} checked out.");
+        }
+        catch (Exception)
+        {
+            ShowToast("Failed to check out visitor. Please try again.", "danger");
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private void PromptCancel(Guid id)  { _confirmId = id; _confirmAction = "cancel"; }

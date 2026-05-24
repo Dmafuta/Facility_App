@@ -34,7 +34,11 @@
     </div>
 </div>
 
-@if (_loading)
+@if (_loadError is not null)
+{
+    <div class="alert alert-danger mt-2"><i class="bi bi-exclamation-triangle me-2"></i>@_loadError</div>
+}
+else if (_loading)
 {
     <div class="text-center py-5"><div class="spinner-border text-primary"></div></div>
 }
@@ -175,15 +179,27 @@ else
     private Guid? _revokePassId;
     private string? _revokePassNumber;
     private string? _revokeReason;
+    private string? _loadError;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
         _loading = true;
-        (_items, _total) = await PassSvc.GetPassesAsync(_status, _search, _page, _pageSize);
-        _totalPages = (int)Math.Ceiling(_total / (double)_pageSize);
-        _loading = false;
+        _loadError = null;
+        try
+        {
+            (_items, _total) = await PassSvc.GetPassesAsync(_status, _search, _page, _pageSize);
+            _totalPages = (int)Math.Ceiling(_total / (double)_pageSize);
+        }
+        catch (Exception)
+        {
+            _loadError = "Failed to load passes. Please refresh the page.";
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task OnSearchKey(KeyboardEventArgs e)
@@ -200,9 +216,17 @@ else
     private void CancelRevoke() { _revokePassId = null; }
     private async Task ConfirmRevoke()
     {
-        await PassSvc.RevokeAsync(_revokePassId!.Value, _revokeReason);
-        _revokePassId = null;
-        await LoadAsync();
+        try
+        {
+            await PassSvc.RevokeAsync(_revokePassId!.Value, _revokeReason);
+            _revokePassId = null;
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            _loadError = "Failed to revoke pass. Please try again.";
+            _revokePassId = null;
+        }
     }
 
     private async Task PrevPage() { if (_page > 1) { _page--; await LoadAsync(); } }

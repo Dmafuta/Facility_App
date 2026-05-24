@@ -169,27 +169,45 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
-        }
 
-        await LoadAsync();
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            ShowToast("Failed to load maintenance requests. Please refresh.", "danger");
+            _loading = false;
+        }
     }
 
     private async Task LoadAsync()
     {
         _loading = true;
-        _requests  = await MaintenanceSvc.GetAllAsync(TabToStatus(_activeTab));
-        _openCount = await MaintenanceSvc.GetOpenCountAsync();
-        _loading = false;
+        try
+        {
+            _requests  = await MaintenanceSvc.GetAllAsync(TabToStatus(_activeTab));
+            _openCount = await MaintenanceSvc.GetOpenCountAsync();
+        }
+        catch (Exception)
+        {
+            ShowToast("Failed to load maintenance requests. Please refresh.", "danger");
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task SetTab(string tab)

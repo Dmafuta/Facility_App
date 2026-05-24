@@ -236,34 +236,43 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var t = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (t is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = t.Id;
-                TenantCtx.TenantSlug = t.Slug;
-                TenantCtx.TenantName = t.Name;
-                TenantCtx.IsResolved = true;
+                var t = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (t is not null)
+                {
+                    TenantCtx.TenantId   = t.Id;
+                    TenantCtx.TenantSlug = t.Slug;
+                    TenantCtx.TenantName = t.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
-        }
 
-        _tenant = await SettingsSvc.GetAsync();
-        if (_tenant is not null)
-        {
-            _form = new SettingsForm
+            _tenant = await SettingsSvc.GetAsync();
+            if (_tenant is not null)
             {
-                Name         = _tenant.Name,
-                ContactEmail = _tenant.ContactEmail,
-                ContactPhone = _tenant.ContactPhone,
-                Address      = _tenant.Address,
-                Website      = _tenant.Website,
-                CustomDomain = _tenant.CustomDomain
-            };
+                _form = new SettingsForm
+                {
+                    Name         = _tenant.Name,
+                    ContactEmail = _tenant.ContactEmail,
+                    ContactPhone = _tenant.ContactPhone,
+                    Address      = _tenant.Address,
+                    Website      = _tenant.Website,
+                    CustomDomain = _tenant.CustomDomain
+                };
+            }
+            if (_tenant?.PrimaryColour is not null) _primaryColour = _tenant.PrimaryColour;
         }
-        _loading = false;
-
-        if (_tenant?.PrimaryColour is not null) _primaryColour = _tenant.PrimaryColour;
+        catch (Exception)
+        {
+            _error = "Failed to load settings. Please refresh the page.";
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task SaveAsync()

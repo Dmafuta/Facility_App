@@ -244,24 +244,41 @@ else if (_stats is not null)
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+            await LoadAsync();
         }
-        await LoadAsync();
+        catch (Exception)
+        {
+            _loading = false;
+        }
     }
 
     private async Task LoadAsync()
     {
         _loading = true;
-        _stats   = await ReportSvc.GetStatsAsync(_from, _to);
-        _loading = false;
+        try
+        {
+            _stats = await ReportSvc.GetStatsAsync(_from, _to);
+        }
+        catch (Exception)
+        {
+            // stats remains null — page shows empty state
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 }

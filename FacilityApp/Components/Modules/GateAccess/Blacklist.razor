@@ -210,9 +210,20 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-        (_items, _total) = await BlacklistSvc.GetEntriesAsync(_search, _typeFilter, _page, _pageSize);
-        _totalPages = (int)Math.Ceiling(_total / (double)_pageSize);
-        _loading = false;
+        _formError = null;
+        try
+        {
+            (_items, _total) = await BlacklistSvc.GetEntriesAsync(_search, _typeFilter, _page, _pageSize);
+            _totalPages = (int)Math.Ceiling(_total / (double)_pageSize);
+        }
+        catch (Exception)
+        {
+            _formError = "Failed to load entries. Please refresh the page.";
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task OnSearchKey(KeyboardEventArgs e)
@@ -256,8 +267,15 @@ else
 
     private async Task RemoveEntry(Guid id)
     {
-        await BlacklistSvc.RemoveAsync(id);
-        await LoadAsync();
+        try
+        {
+            await BlacklistSvc.RemoveAsync(id);
+            await LoadAsync();
+        }
+        catch (Exception)
+        {
+            _formError = "Failed to remove entry. Please try again.";
+        }
     }
 
     private void CancelForm() { _showForm = false; _form = new(); _formError = null; }

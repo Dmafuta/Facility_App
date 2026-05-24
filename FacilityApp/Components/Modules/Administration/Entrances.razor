@@ -164,25 +164,43 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+            await LoadAsync();
         }
-        await LoadAsync();
+        catch (Exception)
+        {
+            ShowToast("Failed to load entrances. Please refresh the page.", "danger");
+            _loading = false;
+        }
     }
 
     private async Task LoadAsync()
     {
-        _loading   = true;
-        _entrances = await EntranceSvc.GetAllAsync();
-        _loading   = false;
+        _loading = true;
+        try
+        {
+            _entrances = await EntranceSvc.GetAllAsync();
+        }
+        catch (Exception)
+        {
+            ShowToast("Failed to load entrances. Please refresh.", "danger");
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task SaveAsync()

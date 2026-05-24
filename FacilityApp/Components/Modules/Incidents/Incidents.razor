@@ -299,24 +299,34 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+
+            var auth  = await AuthState.GetAuthenticationStateAsync();
+            _userId   = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+            _userName = auth.User.Identity?.Name ?? "";
+
+            _all = await IncidentSvc.GetAllAsync();
         }
-
-        var auth  = await AuthState.GetAuthenticationStateAsync();
-        _userId   = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
-        _userName = auth.User.Identity?.Name ?? "";
-
-        _all     = await IncidentSvc.GetAllAsync();
-        _loading = false;
+        catch (Exception)
+        {
+            ShowToast("Failed to load incidents. Please refresh the page.", "danger");
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private async Task SubmitAsync()

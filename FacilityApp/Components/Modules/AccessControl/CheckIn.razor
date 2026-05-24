@@ -486,18 +486,26 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!TenantCtx.IsResolved)
+        try
         {
-            var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
-            if (tenant is not null)
+            if (!TenantCtx.IsResolved)
             {
-                TenantCtx.TenantId   = tenant.Id;
-                TenantCtx.TenantSlug = tenant.Slug;
-                TenantCtx.TenantName = tenant.Name;
-                TenantCtx.IsResolved = true;
+                var tenant = await TenantSvc.ResolveBySlugAsync(TenantSlug);
+                if (tenant is not null)
+                {
+                    TenantCtx.TenantId   = tenant.Id;
+                    TenantCtx.TenantSlug = tenant.Slug;
+                    TenantCtx.TenantName = tenant.Name;
+                    TenantCtx.IsResolved = true;
+                }
             }
+            _hosts = await VisitorSvc.GetHostsAsync();
         }
-        _hosts = await VisitorSvc.GetHostsAsync();
+        catch (Exception)
+        {
+            _error = "Failed to load check-in form. Please refresh the page.";
+            _hosts = [];
+        }
     }
 
     private async Task SwitchToScheduledAsync()
@@ -509,8 +517,19 @@ else
         if (_scheduledVisits is null)
         {
             _scheduledLoading = true;
-            _scheduledVisits  = await VisitorSvc.GetScheduledVisitsAsync(null);
-            _scheduledLoading = false;
+            try
+            {
+                _scheduledVisits = await VisitorSvc.GetScheduledVisitsAsync(null);
+            }
+            catch (Exception)
+            {
+                _error = "Failed to load scheduled visits. Please try again.";
+                _scheduledVisits = [];
+            }
+            finally
+            {
+                _scheduledLoading = false;
+            }
         }
     }
 

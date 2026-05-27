@@ -8,11 +8,13 @@ public class ParcelService : IParcelService
 {
     private readonly IDbContextFactory<AppDbContext> _factory;
     private readonly TenantContext _tenantCtx;
+    private readonly ISmsService _sms;
 
-    public ParcelService(IDbContextFactory<AppDbContext> factory, TenantContext tenantCtx)
+    public ParcelService(IDbContextFactory<AppDbContext> factory, TenantContext tenantCtx, ISmsService sms)
     {
         _factory   = factory;
         _tenantCtx = tenantCtx;
+        _sms       = sms;
     }
 
     public async Task<List<Parcel>> GetAllAsync(ParcelStatus? status = null)
@@ -54,6 +56,22 @@ public class ParcelService : IParcelService
         };
         db.Parcels.Add(parcel);
         await db.SaveChangesAsync();
+
+        // SMS occupants of the unit
+        if (unitId.HasValue)
+        {
+            var occupants = await db.UserUnits
+                .Include(uu => uu.User)
+                .Where(uu => uu.UnitId == unitId.Value && uu.LinkType == UnitLinkType.Occupant)
+                .ToListAsync();
+
+            foreach (var uu in occupants)
+            {
+                if (!string.IsNullOrWhiteSpace(uu.User.PhoneNumber))
+                    _ = _sms.SendParcelArrivedAsync(uu.User.PhoneNumber, recipientName, description, _tenantCtx.TenantName);
+            }
+        }
+
         return parcel;
     }
 

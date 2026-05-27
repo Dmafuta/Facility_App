@@ -11,17 +11,19 @@ public class VisitorService : IVisitorService
     private readonly AppDbContext _context;
     private readonly TenantContext _tenantCtx;
     private readonly IEmailService _email;
+    private readonly ISmsService _sms;
     private readonly IAuditService _audit;
     private readonly IHubContext<NotificationHub> _hub;
     private readonly IBlacklistService _blacklist;
 
     public VisitorService(AppDbContext context, TenantContext tenantCtx,
-        IEmailService email, IAuditService audit, IHubContext<NotificationHub> hub,
-        IBlacklistService blacklist)
+        IEmailService email, ISmsService sms, IAuditService audit,
+        IHubContext<NotificationHub> hub, IBlacklistService blacklist)
     {
         _context   = context;
         _tenantCtx = tenantCtx;
         _email     = email;
+        _sms       = sms;
         _audit     = audit;
         _hub       = hub;
         _blacklist = blacklist;
@@ -159,15 +161,14 @@ public class VisitorService : IVisitorService
             visitor.FullName, purpose,
             hostUserId is null ? "Unassigned" : (await _context.Users.FindAsync(hostUserId))?.FullName ?? "Unknown");
 
-        // Notify host if they have an email
+        // Notify host if they have an email or phone
         if (hostUserId is not null)
         {
             var host = await _context.Users.FindAsync(hostUserId);
             if (host?.Email is not null)
-            {
-                _ = _email.SendCheckInAlertAsync(
-                    host.Email, host.FullName, visitor.FullName, purpose, _tenantCtx.TenantName);
-            }
+                _ = _email.SendCheckInAlertAsync(host.Email, host.FullName, visitor.FullName, purpose, _tenantCtx.TenantName);
+            if (host?.PhoneNumber is not null)
+                _ = _sms.SendCheckInAlertAsync(host.PhoneNumber, host.FullName, visitor.FullName, purpose, _tenantCtx.TenantName);
         }
 
         return visit;
@@ -202,10 +203,9 @@ public class VisitorService : IVisitorService
         {
             var host = await _context.Users.FindAsync(hostUserId);
             if (host?.Email is not null)
-            {
-                _ = _email.SendVisitConfirmationAsync(
-                    host.Email, host.FullName, visitor.FullName, purpose, scheduledAt, _tenantCtx.TenantName);
-            }
+                _ = _email.SendVisitConfirmationAsync(host.Email, host.FullName, visitor.FullName, purpose, scheduledAt, _tenantCtx.TenantName);
+            if (host?.PhoneNumber is not null)
+                _ = _sms.SendVisitConfirmationAsync(host.PhoneNumber, host.FullName, visitor.FullName, purpose, scheduledAt, _tenantCtx.TenantName);
         }
 
         return visit;
@@ -239,11 +239,9 @@ public class VisitorService : IVisitorService
             visit.Host?.FullName ?? "Unassigned");
 
         if (visit.Host?.Email is not null)
-        {
-            _ = _email.SendCheckInAlertAsync(
-                visit.Host.Email, visit.Host.FullName, visit.Visitor.FullName,
-                visit.Purpose, _tenantCtx.TenantName);
-        }
+            _ = _email.SendCheckInAlertAsync(visit.Host.Email, visit.Host.FullName, visit.Visitor.FullName, visit.Purpose, _tenantCtx.TenantName);
+        if (visit.Host?.PhoneNumber is not null)
+            _ = _sms.SendCheckInAlertAsync(visit.Host.PhoneNumber, visit.Host.FullName, visit.Visitor.FullName, visit.Purpose, _tenantCtx.TenantName);
     }
 
     public async Task CheckOutAsync(Guid visitId, Guid? entranceId = null)

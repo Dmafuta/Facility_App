@@ -294,6 +294,12 @@ namespace FacilityApp
             builder.Services.AddSingleton(smtp);
             builder.Services.AddScoped<IEmailService, EmailService>();
 
+            // SMS (Africa's Talking)
+            var at = builder.Configuration.GetSection("AfricasTalking").Get<AfricasTalkingSettings>() ?? new AfricasTalkingSettings();
+            builder.Services.AddSingleton(at);
+            builder.Services.AddHttpClient("africastalking");
+            builder.Services.AddScoped<ISmsService, SmsService>();
+
             // Application services
             builder.Services.AddScoped<IAuditService, AuditService>();
             builder.Services.AddScoped<IDashboardService, DashboardService>();
